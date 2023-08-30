@@ -2,7 +2,6 @@ import os
 from typing import List
 
 from django.conf import settings
-from llm.chains import config
 
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
@@ -28,5 +27,7 @@ def load_embeddings(index_name: str) -> FAISS:
     return FAISS.load_local(EMBEDDINGS_PATH, OpenAIEmbeddings(), index_name)
 
 
-def get_retriever():
-    return load_embeddings(config.BOT_KNOWLEDGE_INDEX).as_retriever()
+def get_retriever(language: str):
+    # TODO: use language to get the correct knowledge index
+    knowledge_index = "ANXIETY.docx.pdf"
+    return load_embeddings(knowledge_index).as_retriever()
