@@ -1,5 +1,8 @@
 import os
 import django
+import secrets
+import string
+
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -16,12 +19,16 @@ django.setup()
 
 @api_view(["POST"])
 def create_chat(request):
-    question = request.data.get("question").strip()
+    prompt = request.data.get("prompt").strip()
+    session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
-    answer = run_chat_chain(question)
+    answer = run_chat_chain(prompt=prompt, session_id=session_id)
 
     return Response(
-        {"answer": answer},
+        {
+            "answer": answer,
+            "session_id": session_id,
+        },
         status=status.HTTP_201_CREATED,
     )
 
@@ -37,3 +44,8 @@ def create_embeddings(request):
         f"Created {document_file_name} index",
         status=status.HTTP_201_CREATED,
     )
+
+
+def generate_short_id(length=6):
+    alphanumeric = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphanumeric) for _ in range(length))

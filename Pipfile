@@ -11,6 +11,8 @@ tiktoken = "*"
 djangorestframework = "*"
 pypdf = "*"
 openai = "*"
+python-dotenv = "*"
+psycopg = "*"
 
 [dev-packages]
 
