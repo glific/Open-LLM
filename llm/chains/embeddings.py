@@ -14,11 +14,11 @@ EMBEDDINGS_PATH = os.path.join(
 )
 
 
-def create_embeddings(chunks: List[Document], document_file_name: str) -> FAISS:
+def create_embeddings(chunks: List[Document], index_name: str) -> FAISS:
     store = OpenAIEmbeddings()
     db = FAISS.from_documents(chunks, store)
 
-    db.save_local(EMBEDDINGS_PATH, document_file_name)
+    db.save_local(EMBEDDINGS_PATH, index_name)
 
     return db
 
@@ -28,6 +28,4 @@ def load_embeddings(index_name: str) -> FAISS:
 
 
 def get_retriever(language: str):
-    # TODO: use language to get the correct knowledge index
-    knowledge_index = "ANXIETY.docx.pdf"
-    return load_embeddings(knowledge_index).as_retriever()
+    return load_embeddings("embeddings").as_retriever()

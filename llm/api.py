@@ -25,11 +25,20 @@ def create_chat(request):
 
     language_detector = detect_languages_chain()
     languages = language_detector.run(prompt)
+
+    print(f"Language detector chain result: {languages}")
+
     primary_language = languages["primary_detected_language"]
+    english_translation_prompt = languages["translation_to_english"]
 
     response = run_chat_chain(
-        prompt=prompt, session_id=session_id, primary_language=primary_language
+        prompt=prompt,
+        session_id=session_id,
+        primary_language=primary_language,
+        english_translation_prompt=english_translation_prompt,
     )
+
+    print(f"Chat chain result: {response}")
 
     # Remove source documents from response since we have verbose logging setup
     del response["source_documents"]
@@ -45,14 +54,12 @@ def create_chat(request):
 
 
 @api_view(["POST"])
-def create_embeddings(request):
-    document_file_name = request.data.get("file_name").strip()
-
-    chunks = loader.load_pdf(document_file_name)
-    embeddings.create_embeddings(chunks, document_file_name)
+def create_embeddings(_):
+    chunks = loader.load_pdfs()
+    embeddings.create_embeddings(chunks=chunks, index_name="embeddings")
 
     return Response(
-        f"Created {document_file_name} index",
+        f"Created embeddings index",
         status=status.HTTP_201_CREATED,
     )
 
