@@ -49,10 +49,16 @@ def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate
         {english_context}
         {context}
 
+        Samples:
+
+        User Question: Peshab ki jagah se kharash ho rahi hai
+        Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+
         User Question: {question}
 
         Chatbot Answer in {language}:""".replace(
-            "{language}", language
+            "{language}",
+            f"{language} (Roman characters)" if language == "Hindi" else language,
         ).replace(
             "{english_context}", "" if language == "English" else english_context
         )
@@ -64,5 +70,5 @@ def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate
 
 
 def get_llm():
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo-16k", temperature=0.7)
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
     return llm
