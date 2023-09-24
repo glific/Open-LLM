@@ -70,7 +70,7 @@ For testing the LLM, we are using [HTTPie](https://httpie.io) because of its suc
 You can query the LLM using the following command:
 
 ```bash
-http POST :8000/llm/ prompt='How can I help someone with anxiety'
+curl -X POST -d "prompt=How can I help someone with anxiety" http://127.0.0.1:8000/api/chat
 ```
 
 This will return a JSON endpoint with the LLM response as well as a session id.
@@ -86,7 +86,7 @@ This will return a JSON endpoint with the LLM response as well as a session id.
 To ask a fellow up question, you can use the session id returned in the previous response:
 
 ```bash
-http POST :8000/api/chat prompt='Give me examples of practical help I can offer' session_id='e971aH'
+curl -X POST -d "prompt=Give me examples of practical help I can offer" session_id="e971aH" http://127.0.0.1:8000/api/chat
 ```
 
 ```json
@@ -116,5 +116,7 @@ http POST :8000/api/chat prompt='Give me examples of practical help I can offer'
 The source documents for the embeddings are stored locally in the `llm/data/sources` folder. To re-generate the embeddings, run:
 
 ```bash
-http POST :8000/api/embeddings
+curl -X POST  http://127.0.0.1:8000/api/embeddings
 ```
+
+If you intend to utilize this with your custom documents, first remove all existing files within the same folder and then add your files. Afterward, rerun the above command.
