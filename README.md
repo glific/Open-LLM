@@ -57,6 +57,12 @@ Install the dependencies, run:
 pipenv install
 ```
 
+Run migration
+
+```bash
+python manage.py migrate
+```
+
 ### Start the server
 
 ```bash
