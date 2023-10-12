@@ -6,7 +6,7 @@ from langchain.prompts.chat import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-
+import psycopg2, os
 from llm.chains import embeddings, memory
 
 
@@ -37,10 +37,40 @@ def run_chat_chain(
     return result
 
 
+
+def get_system_message_prompt():
+    database_url = os.getenv('DATABASE_URL')
+    try:
+        # Connect to the PostgreSQL database using the DATABASE_URL
+        connection = psycopg2.connect(database_url)
+        cursor = connection.cursor()
+
+        # Define the SQL query to fetch data
+        query = "SELECT system_prompt FROM organization WHERE id = 1;"
+
+        # Execute the query
+        cursor.execute(query)
+
+        # Fetch the result
+        result = cursor.fetchone()
+
+        if result:
+            system_prompt_value = result[0]
+            print("System Prompt for ID 1: {system_prompt_value}")
+        else:
+            print("No data found for ID 1 in the 'organization' table.")
+
+    except (Exception, psycopg2.Error) as error:
+        print(f"Error: {error}")
+
+    finally:
+        # Close the cursor and connection
+        if connection:
+            cursor.close()
+            connection.close()
+
 def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate:
-    system_message_prompt = SystemMessagePromptTemplate.from_template(
-        "I want you to act as a chatbot for providing tailored sexual and reproductive health advice to women in India. You represent an organization called The Myna Mahila Foundation (mynamahila.com), an Indian organization which empowers women by encouraging discussion of taboo subjects such as menstruation, and by setting up workshops to produce low-cost sanitary protection to enable girls to stay in school. In India, majority of girls report not knowing about menstruation before their first period. This is because of limited access to unbiased information due to stigma, discrimination, and lack of resources. The information you provide needs to be non-judgmental, confidential, accurate, and tailored to those living in urban slums. Your response should be in the same language as the user's input."
-    )
+    system_message_prompt = SystemMessagePromptTemplate.from_template(str(get_system_message_prompt()))
     human_message_prompt = HumanMessagePromptTemplate.from_template(
         """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
