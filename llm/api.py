@@ -2,6 +2,7 @@ import os
 import django
 import secrets
 import string
+import psycopg2
 
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -63,6 +64,34 @@ def create_embeddings(_):
         status=status.HTTP_201_CREATED,
     )
 
+@api_view(["POST"])
+def set_system_prompt(request):
+    database_url = os.getenv('DATABASE_URL')
+    system_prompt = request.data.get("system_prompt").strip()
+    try:
+        # Connect to the PostgreSQL database using the DATABASE_URL
+        connection = psycopg2.connect(database_url)
+        cursor = connection.cursor()
+
+        # Define the SQL query to fetch data
+        query = "Update organization SET system_prompt= %s WHERE id = 1;"
+
+        # Execute the query
+        cursor.execute(query, (system_prompt, ))
+
+    except (Exception, psycopg2.Error) as error:
+        print(f"Error: {error}")
+
+    finally:
+        # Close the cursor and connection
+        if connection:
+            cursor.close()
+            connection.close()
+  
+    return Response(
+        f"Updated System Prompt",
+        status=status.HTTP_201_CREATED,
+    )
 
 def generate_short_id(length=6):
     alphanumeric = string.ascii_letters + string.digits
