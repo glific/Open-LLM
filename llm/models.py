@@ -16,6 +16,8 @@ class MessageStore(models.Model):
 
 class Organization(models.Model):
     id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    api_key = models.CharField(max_length=255)
     system_prompt = models.TextField()
 
     class Meta:

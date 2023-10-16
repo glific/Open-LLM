@@ -68,9 +68,15 @@ def create_embeddings(_):
 @api_view(["POST"])
 def set_system_prompt(request):
     system_prompt = request.data.get("system_prompt").strip()
-    org_id = 1
+    org = current_org(request)
+    if not org:
+        return Response(
+            f"Organization not found",
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
     try:
-        Organization.objects.filter(id=org_id).update(system_prompt=system_prompt)
+        Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
     except Exception as error:
         print(f"Error: {error}")
         return Response(
@@ -82,6 +88,17 @@ def set_system_prompt(request):
         f"Updated System Prompt",
         status=status.HTTP_201_CREATED,
     )
+
+
+def current_org(request):
+    api_key = request.headers.get("Authorization")
+    if not api_key:
+        return None
+
+    try:
+        return Organization.objects.get(api_key=api_key)
+    except Organization.DoesNotExist:
+        return None
 
 
 def generate_short_id(length=6):
