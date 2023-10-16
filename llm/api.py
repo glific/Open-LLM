@@ -2,7 +2,6 @@ import os
 import django
 import secrets
 import string
-import psycopg2
 
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -12,6 +11,7 @@ from .chains.functions import detect_languages_chain
 from .chains.chat import run_chat_chain
 from .chains import embeddings
 from .data import loader
+from .models import Organization
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
@@ -64,34 +64,25 @@ def create_embeddings(_):
         status=status.HTTP_201_CREATED,
     )
 
+
 @api_view(["POST"])
 def set_system_prompt(request):
-    database_url = os.getenv('DATABASE_URL')
     system_prompt = request.data.get("system_prompt").strip()
+    org_id = 1
     try:
-        # Connect to the PostgreSQL database using the DATABASE_URL
-        connection = psycopg2.connect(database_url)
-        cursor = connection.cursor()
-
-        # Define the SQL query to fetch data
-        query = "Update organization SET system_prompt= %s WHERE id = 1;"
-
-        # Execute the query
-        cursor.execute(query, (system_prompt, ))
-
-    except (Exception, psycopg2.Error) as error:
+        Organization.objects.filter(id=org_id).update(system_prompt=system_prompt)
+    except Exception as error:
         print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
-    finally:
-        # Close the cursor and connection
-        if connection:
-            cursor.close()
-            connection.close()
-  
     return Response(
         f"Updated System Prompt",
         status=status.HTTP_201_CREATED,
     )
+
 
 def generate_short_id(length=6):
     alphanumeric = string.ascii_letters + string.digits
