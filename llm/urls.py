@@ -19,12 +19,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from llm.api import create_chat, FileUploadView
+from llm.api import create_chat, create_embeddings, FileUploadView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/chat", create_chat, name="create_chat"),
-    # path("api/embeddings", create_embeddings, name="create_embeddings"),
+    path("api/embeddings", create_embeddings, name="create_embeddings"),
     path("api/upload", FileUploadView.as_view(), name="file-upload")
 ]
 
