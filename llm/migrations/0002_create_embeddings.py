@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('raw_text', models.TextField()),
                 ('text_source', models.TextField()),
-                ('doc_vectors', models.TextField()),
+                ('doc_vectors', models.BinaryField(max_length=1536)),
             ],
             options={
                 'db_table': 'embeddings',

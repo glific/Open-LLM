@@ -10,3 +10,5 @@ class MessageStore(models.Model):
 
     class Meta:
         db_table = "message_store"
+    class Embeddings:
+        db_table = "embeddings"
