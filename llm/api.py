@@ -12,6 +12,12 @@ from .chains.chat import run_chat_chain
 from .chains import embeddings
 from .data import loader
 
+from django.http import JsonResponse
+from rest_framework.parsers import MultiPartParser
+from rest_framework.views import APIView
+from pypdf import PdfReader
+
+import openai
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
 
@@ -52,6 +58,39 @@ def create_chat(request):
         status=status.HTTP_201_CREATED,
     )
 
+
+class FileUploadView(APIView):
+    parser_classes = (MultiPartParser,)
+    
+    def post(self, request, format=None):
+        if 'file' not in request.data:
+            raise ValueError("Empty content")
+        
+        file = request.data['file']
+
+        print(type(file))
+
+        # 1. Turn file into text
+        pdf_reader = PdfReader(file)
+        first_page_txt = pdf_reader.pages[0].extract_text().replace("\n", " ")
+        print("FIRST PDF TEXT:", first_page_txt)
+
+        # 2. Turn text into embeddings using text-embedding-ada-002
+        response = openai.Embedding.create(model="text-embedding-ada-002", input=first_page_txt)
+        print("RESPONSE: ", response)
+        embeddings = response['data'][0]['embedding']
+        print("EMBEDDINGS", len(embeddings))
+
+        # 3. Database migration
+        # organization_chunks (chunk === 1 page)
+        # - raw_text (.e.g This is how to care for elderly... )
+        # - text_source (e.g. Myna Anixety Doc)
+        # - doc_vectors (e.g. 1.243432, 3.) (pg_vector)
+        # - organization_id (fk)
+
+        # 4. Store vectors in pg-vector in a way thats associated with an organization
+        
+        return JsonResponse({'status': 'file upload successful'})
 
 @api_view(["POST"])
 def create_embeddings(_):

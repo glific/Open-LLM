@@ -1,10 +1,10 @@
 services:
   db:
-    image: postgres
+    image: ankane/pgvector # https://hub.docker.com/r/ankane/pgvector
     environment:
       POSTGRES_DB: llm_db
       POSTGRES_USER: llm_agent
       POSTGRES_PASSWORD: llm_password
     ports:
-      - 5432:5432
+      - 5433:5432
     command: postgres -c log_destination=stderr -c log_min_duration_statement=0

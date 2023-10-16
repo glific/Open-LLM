@@ -13,14 +13,18 @@ Class-based views
 Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+
+    curl -X POST -H "Content-Type: multipart/form-data" -F "file=@llm/data/sources/ANXIETY.docx.pdf" http://localhost:8000/api/upload
 """
 from django.contrib import admin
 from django.urls import path
 
-from llm.api import create_chat, create_embeddings
+from llm.api import create_chat, FileUploadView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/chat", create_chat, name="create_chat"),
-    path("api/embeddings", create_embeddings, name="create_embeddings"),
+    # path("api/embeddings", create_embeddings, name="create_embeddings"),
+    path("api/upload", FileUploadView.as_view(), name="file-upload")
 ]
+
