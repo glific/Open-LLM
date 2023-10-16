@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Embeddings',
+            name='Embedding',
             fields=[
                 ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('raw_text', models.TextField()),
@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ('doc_vectors', models.BinaryField(max_length=1536)),
             ],
             options={
-                'db_table': 'embeddings',
+                'db_table': 'embedding',
             },
         ),
     ]

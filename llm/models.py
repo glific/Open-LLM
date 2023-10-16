@@ -11,11 +11,11 @@ class MessageStore(models.Model):
     class Meta:
         db_table = "message_store"
 
-class Embeddings(models.Model):
+class Embedding(models.Model):
     id = models.AutoField(primary_key=True)
     raw_text = models.TextField()
     text_source = models.TextField()
     doc_vectors = models.BinaryField(max_length=1536)
 
     class Meta:
-        db_table = "embeddings"
+        db_table = "embedding"

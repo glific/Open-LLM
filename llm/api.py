@@ -16,6 +16,7 @@ from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 from pypdf import PdfReader
+from llm.models import Embedding
 
 import openai
 
@@ -81,14 +82,8 @@ class FileUploadView(APIView):
         embeddings = response['data'][0]['embedding']
         print("EMBEDDINGS", len(embeddings))
 
-        # 3. Database migration
-        # organization_chunks (chunk === 1 page)
-        # - raw_text (.e.g This is how to care for elderly... )
-        # - text_source (e.g. Myna Anixety Doc)
-        # - doc_vectors (e.g. 1.243432, 3.) (pg_vector)
-        # - organization_id (fk)
-
-        # 4. Store vectors in pg-vector in a way thats associated with an organization
+        Embedding.objects.create(raw_text='John', text_source='John', 
+                                 doc_vectors='hello')
         
         return JsonResponse({'status': 'file upload successful'})
 
