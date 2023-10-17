@@ -7,9 +7,10 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from llm.chains.embeddings import get_pgvector_idx
+
 from .chains.functions import detect_languages_chain
 from .chains.chat import run_chat_chain
-from .chains import embeddings
 from .data import loader
 from .models import Organization
 
@@ -28,37 +29,51 @@ django.setup()
 
 @api_view(["POST"])
 def create_chat(request):
-    prompt = request.data.get("prompt").strip()
-    session_id = (request.data.get("session_id") or generate_short_id()).strip()
+    try:
+        org = current_org(request)
+        if not org:
+            return Response(
+                f"Invalid API key",
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-    language_detector = detect_languages_chain()
-    languages = language_detector.run(prompt)
+        prompt = request.data.get("prompt").strip()
+        session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
-    print(f"Language detector chain result: {languages}")
+        language_detector = detect_languages_chain()
+        languages = language_detector.run(prompt)
 
-    primary_language = languages["primary_detected_language"]
-    english_translation_prompt = languages["translation_to_english"]
+        print(f"Language detector chain result: {languages}")
 
-    response = run_chat_chain(
-        prompt=prompt,
-        session_id=session_id,
-        primary_language=primary_language,
-        english_translation_prompt=english_translation_prompt,
-    )
+        primary_language = languages["primary_detected_language"]
+        english_translation_prompt = languages["translation_to_english"]
 
-    print(f"Chat chain result: {response}")
+        response = run_chat_chain(
+            prompt=prompt,
+            session_id=session_id,
+            primary_language=primary_language,
+            english_translation_prompt=english_translation_prompt,
+            organization_id=org.id,
+        )
 
-    # Remove source documents from response since we have verbose logging setup
-    del response["source_documents"]
+        print(f"Chat chain result: {response}")
 
-    return Response(
-        {
-            "answer": response["result"],
-            "chat_history": response["chat_history"],
-            "session_id": session_id,
-        },
-        status=status.HTTP_201_CREATED,
-    )
+        del response["source_documents"]
+
+        return Response(
+            {
+                "answer": response["result"],
+                "chat_history": response["chat_history"],
+                "session_id": session_id,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 class FileUploadView(APIView):
@@ -90,11 +105,17 @@ class FileUploadView(APIView):
                 if len(embeddings) != 1536:
                     raise ValueError(f"Invalid embedding length: #{len(embeddings)}")
 
-                Embedding.objects.create(
-                    source_name=file.name,
-                    original_text=page_text,
-                    text_vectors=embeddings,
-                    organization=org,
+                # TODO: uncomment after move away from langchain to simplify code
+                # Embedding.objects.create(
+                #     source_name=file.name,
+                #     original_text=page_text,
+                #     text_vectors=embeddings,
+                #     organization=org,
+                # )
+
+                pgvector_idx = get_pgvector_idx()
+                pgvector_idx.add_texts(
+                    texts=[page_text], metadatas=[{"organization_id": org.id}]
                 )
 
             return JsonResponse({"status": "file upload successful"})
@@ -113,27 +134,27 @@ class FileUploadView(APIView):
 
 @api_view(["POST"])
 def set_system_prompt(request):
-    system_prompt = request.data.get("system_prompt").strip()
-    org = current_org(request)
-    if not org:
-        return Response(
-            f"Invalid API key",
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
     try:
-        Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
+        system_prompt = request.data.get("system_prompt").strip()
+        org = current_org(request)
+        if not org:
+            return Response(
+                f"Invalid API key",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+            Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
+
+        return Response(
+            f"Updated System Prompt",
+            status=status.HTTP_201_CREATED,
+        )
     except Exception as error:
         print(f"Error: {error}")
         return Response(
             f"Something went wrong",
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-    return Response(
-        f"Updated System Prompt",
-        status=status.HTTP_201_CREATED,
-    )
 
 
 def current_org(request):

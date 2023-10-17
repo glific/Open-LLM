@@ -1,3 +1,4 @@
+import psycopg2, os
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
@@ -6,15 +7,26 @@ from langchain.prompts.chat import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-import psycopg2, os
-from llm.chains import embeddings, memory
+from langchain.vectorstores.pgvector import PGVector
+from langchain.embeddings.openai import OpenAIEmbeddings
+
+from llm.chains import memory
+from llm.chains.embeddings import get_pgvector_idx
 
 
 def run_chat_chain(
-    prompt: str, session_id: str, primary_language: str, english_translation_prompt: str
+    prompt: str,
+    session_id: str,
+    primary_language: str,
+    english_translation_prompt: str,
+    organization_id: int,
 ):
-    llm = get_llm()
-    retriever = embeddings.get_retriever(language=primary_language)
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
+
+    retriever = get_pgvector_idx().as_retriever(
+        search_kwards={filter: {"organization_id": organization_id}}
+    )
+
     relevant_english_context = "".join(
         doc.page_content
         for doc in retriever.get_relevant_documents(english_translation_prompt)
@@ -37,9 +49,8 @@ def run_chat_chain(
     return result
 
 
-
 def get_system_message_prompt():
-    database_url = os.getenv('DATABASE_URL')
+    database_url = os.getenv("DATABASE_URL")
     try:
         # Connect to the PostgreSQL database using the DATABASE_URL
         connection = psycopg2.connect(database_url)
@@ -56,7 +67,7 @@ def get_system_message_prompt():
 
         if result:
             system_prompt_value = result[0]
-            print("System Prompt for ID 1: {system_prompt_value}")
+            print(f"System Prompt for ID 1: {system_prompt_value}")
         else:
             print("No data found for ID 1 in the 'organization' table.")
 
@@ -69,8 +80,11 @@ def get_system_message_prompt():
             cursor.close()
             connection.close()
 
+
 def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate:
-    system_message_prompt = SystemMessagePromptTemplate.from_template(str(get_system_message_prompt()))
+    system_message_prompt = SystemMessagePromptTemplate.from_template(
+        str(get_system_message_prompt())
+    )
     human_message_prompt = HumanMessagePromptTemplate.from_template(
         """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
@@ -97,8 +111,3 @@ def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate
         [system_message_prompt, human_message_prompt]
     )
     return chat_prompt
-
-
-def get_llm():
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
-    return llm
