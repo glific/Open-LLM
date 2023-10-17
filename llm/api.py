@@ -89,9 +89,17 @@ def set_system_prompt(request):
         status=status.HTTP_201_CREATED,
     )
 
+
 @api_view(["POST"])
-def set_message_prompt(request):
-    message_prompt = request.data.get("message_prompt").strip()
+def set_human_prompt(request):
+    print(f"Error: {request.data}")
+    user_question = request.data.get("user_question").strip()
+    chatbot_answer = request.data.get("chatbot_answer").strip()
+    language = request.data.get("language").strip()
+    human_prompt = """
+    User Question: {user_question}
+    Chatbot Answer in {language}: {chatbot_answer}
+    """
     org = current_org(request)
     if not org:
         return Response(
@@ -100,7 +108,7 @@ def set_message_prompt(request):
         )
 
     try:
-        Organization.objects.filter(id=org.id).update(message_prompt=message_prompt)
+        Organization.objects.filter(id=org.id).update(human_prompt=human_prompt)
     except Exception as error:
         print(f"Error: {error}")
         return Response(
