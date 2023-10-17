@@ -126,3 +126,22 @@ curl -X POST  http://127.0.0.1:8000/api/embeddings
 ```
 
 If you intend to utilize this with your custom documents, first remove all existing files within the same folder and then add your files. Afterward, rerun the above command.
+
+### Seeding
+
+To seed the database with a sample organization, open a python shell (`python manage.py shell`) and run the following command:
+
+```python
+from llm.models import Organization
+Organization.objects.create(
+  name="Myna Mahila",
+  system_prompt="I want you to act as a chatbot for providing tailored sexual and reproductive health advice to women in India. You represent an organization called The Myna Mahila Foundation (mynamahila.com), an Indian organization which empowers women by encouraging discussion of taboo subjects such as menstruation, and by setting up workshops to produce low-cost sanitary protection to enable girls to stay in school. In India, majority of girls report not knowing about menstruation before their first period. This is because of limited access to unbiased information due to stigma, discrimination, and lack of resources. The information you provide needs to be non-judgmental, confidential, accurate, and tailored to those living in urban slums. Your response should be in the same language as the user's input.",
+  api_key="sk_EXAMPLE_SECRET_KEY",
+)
+```
+
+To make requests to the API with the organization's API key, use the following command:
+
+```bash
+curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"system_prompt":"You are a chatbot that formats your responses as poetry."}' http://localhost:8000/api/system_prompt
+```

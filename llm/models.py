@@ -16,11 +16,21 @@ class MessageStore(models.Model):
         db_table = "message_store"
 
 
+class Organization(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    api_key = models.CharField(max_length=255)
+    system_prompt = models.TextField()
+
+    class Meta:
+        db_table = "organization"
+
+
 class Embedding(models.Model):
     id = models.AutoField(primary_key=True)
-    original_text = models.TextField()
     source_name = models.TextField()
-    vectors = VectorField(dimensions=1563, null=True)
+    original_text = models.TextField()
+    text_vectors = VectorField(dimensions=1563, null=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
 
     class Meta:

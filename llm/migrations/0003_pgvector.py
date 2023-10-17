@@ -6,7 +6,7 @@ import pgvector.django
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("llm", "0001_initial"),
+        ("llm", "0002_add_organization"),
     ]
 
     operations = [pgvector.django.VectorExtension()]
