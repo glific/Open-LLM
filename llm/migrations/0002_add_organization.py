@@ -5,8 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     replaces = [
-        ("llm", "0002_add_organizationstore"),
-        ("llm", "0003_organization_delete_organizationstore"),
+        ("llm", "0002_add_organizationstore")
     ]
 
     dependencies = [
@@ -21,6 +20,7 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(max_length=255)),
                 ("api_key", models.CharField(max_length=255)),
                 ("system_prompt", models.TextField()),
+                ("human_prompt", models.TextField()),
             ],
             options={
                 "db_table": "organization",

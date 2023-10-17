@@ -19,6 +19,7 @@ class Organization(models.Model):
     name = models.CharField(max_length=255)
     api_key = models.CharField(max_length=255)
     system_prompt = models.TextField()
+    human_prompt = models.TextField()
 
     class Meta:
         db_table = "organization"
