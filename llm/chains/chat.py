@@ -37,8 +37,7 @@ def run_chat_chain(
     return result
 
 
-
-def get_system_message_prompt():
+def get_organization_data(column_name):
     database_url = os.getenv('DATABASE_URL')
     try:
         # Connect to the PostgreSQL database using the DATABASE_URL
@@ -46,7 +45,7 @@ def get_system_message_prompt():
         cursor = connection.cursor()
 
         # Define the SQL query to fetch data
-        query = "SELECT system_prompt FROM organization WHERE id = 1;"
+        query = f"SELECT {column_name} FROM organization WHERE id = 1;"
 
         # Execute the query
         cursor.execute(query)
@@ -55,10 +54,10 @@ def get_system_message_prompt():
         result = cursor.fetchone()
 
         if result:
-            system_prompt_value = result[0]
-            print("System Prompt for ID 1: {system_prompt_value}")
+            value = result[0]
+            print(f"{column_name.capitalize()} for ID 1: {value}")
         else:
-            print("No data found for ID 1 in the 'organization' table.")
+            print(f"No data found for ID 1 in the 'organization' table.")
 
     except (Exception, psycopg2.Error) as error:
         print(f"Error: {error}")
@@ -70,7 +69,8 @@ def get_system_message_prompt():
             connection.close()
 
 def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate:
-    system_message_prompt = SystemMessagePromptTemplate.from_template(str(get_system_message_prompt()))
+    system_message_prompt = SystemMessagePromptTemplate.from_template(str(get_organization_data("system_prompt")))
+    system_human_message_prompt = str(get_organization_data("message_prompt"))
     human_message_prompt = HumanMessagePromptTemplate.from_template(
         """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
@@ -81,8 +81,7 @@ def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate
 
         Samples:
 
-        User Question: Peshab ki jagah se kharash ho rahi hai
-        Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+        {system_human_message_prompt}
 
         User Question: {question}
 
