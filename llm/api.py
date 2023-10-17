@@ -30,17 +30,18 @@ django.setup()
 @api_view(["POST"])
 def create_chat(request):
     try:
-        org = current_org(request)
-        if not org:
+        organization = current_organization(request)
+        if not organization:
             return Response(
                 f"Invalid API key",
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         prompt = request.data.get("prompt").strip()
+        gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
-        language_detector = detect_languages_chain()
+        language_detector = detect_languages_chain(gpt_model)
         languages = language_detector.run(prompt)
 
         print(f"Language detector chain result: {languages}")
@@ -53,7 +54,8 @@ def create_chat(request):
             session_id=session_id,
             primary_language=primary_language,
             english_translation_prompt=english_translation_prompt,
-            organization_id=org.id,
+            organization_id=organization.id,
+            gpt_model=gpt_model,
         )
 
         print(f"Chat chain result: {response}")
@@ -81,7 +83,7 @@ class FileUploadView(APIView):
 
     def post(self, request, format=None):
         try:
-            org = current_org(request)
+            org = current_organization(request)
             if not org:
                 return Response(
                     f"Invalid API key",
@@ -136,7 +138,7 @@ class FileUploadView(APIView):
 def set_system_prompt(request):
     try:
         system_prompt = request.data.get("system_prompt").strip()
-        org = current_org(request)
+        org = current_organization(request)
         if not org:
             return Response(
                 f"Invalid API key",
@@ -157,7 +159,7 @@ def set_system_prompt(request):
         )
 
 
-def current_org(request):
+def current_organization(request):
     api_key = request.headers.get("Authorization")
     if not api_key:
         return None

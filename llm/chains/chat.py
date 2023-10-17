@@ -1,17 +1,14 @@
-import psycopg2, os
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
 from langchain.prompts.chat import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from langchain.vectorstores.pgvector import PGVector
-from langchain.embeddings.openai import OpenAIEmbeddings
 
 from llm.chains import memory
 from llm.chains.embeddings import get_pgvector_idx
+from llm.models import Organization
 
 
 def run_chat_chain(
@@ -20,11 +17,15 @@ def run_chat_chain(
     primary_language: str,
     english_translation_prompt: str,
     organization_id: int,
+    gpt_model: str,
 ):
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.7)
+    llm = ChatOpenAI(model_name=gpt_model, temperature=0.7)
 
     retriever = get_pgvector_idx().as_retriever(
-        search_kwards={filter: {"organization_id": organization_id}}
+        search_kwargs={
+            "score_threshold": 0.7,
+            "filter": {"organization_id": organization_id},
+        }
     )
 
     relevant_english_context = "".join(
@@ -33,7 +34,9 @@ def run_chat_chain(
     )
     chain_memory = memory.conversation_history(session_id=session_id)
     chain_prompt = chat_chain_prompt(
-        language=primary_language, english_context=relevant_english_context
+        organization_id=organization_id,
+        language=primary_language,
+        english_context=relevant_english_context,
     )
     chain_type_kwargs = {"prompt": chain_prompt}
     chain = RetrievalQA.from_chain_type(
@@ -49,42 +52,11 @@ def run_chat_chain(
     return result
 
 
-def get_system_message_prompt():
-    database_url = os.getenv("DATABASE_URL")
-    try:
-        # Connect to the PostgreSQL database using the DATABASE_URL
-        connection = psycopg2.connect(database_url)
-        cursor = connection.cursor()
-
-        # Define the SQL query to fetch data
-        query = "SELECT system_prompt FROM organization WHERE id = 1;"
-
-        # Execute the query
-        cursor.execute(query)
-
-        # Fetch the result
-        result = cursor.fetchone()
-
-        if result:
-            system_prompt_value = result[0]
-            print(f"System Prompt for ID 1: {system_prompt_value}")
-        else:
-            print("No data found for ID 1 in the 'organization' table.")
-
-    except (Exception, psycopg2.Error) as error:
-        print(f"Error: {error}")
-
-    finally:
-        # Close the cursor and connection
-        if connection:
-            cursor.close()
-            connection.close()
-
-
-def chat_chain_prompt(language: str, english_context: str) -> ChatPromptTemplate:
-    system_message_prompt = SystemMessagePromptTemplate.from_template(
-        str(get_system_message_prompt())
-    )
+def chat_chain_prompt(
+    organization_id: int, language: str, english_context: str
+) -> ChatPromptTemplate:
+    org_system_prompt = Organization.objects.get(id=organization_id).system_prompt
+    system_message_prompt = SystemMessagePromptTemplate.from_template(org_system_prompt)
     human_message_prompt = HumanMessagePromptTemplate.from_template(
         """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
