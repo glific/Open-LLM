@@ -154,7 +154,7 @@ def delete_embeddings(request):
 
         return Response(
             f"Deleted all embeddings",
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_204_NO_CONTENT,
         )
     except Exception as error:
         print(f"Error: {error}")
