@@ -62,12 +62,12 @@ def create_chat(request):
 
 class FileUploadView(APIView):
     parser_classes = (MultiPartParser,)
-    
+
     def post(self, request, format=None):
-        if 'file' not in request.data:
+        if "file" not in request.data:
             raise ValueError("Empty content")
-        
-        file = request.data['file']
+
+        file = request.data["file"]
 
         print(type(file))
 
@@ -77,25 +77,32 @@ class FileUploadView(APIView):
         print("FIRST PDF TEXT:", first_page_txt)
 
         # 2. Turn text into embeddings using text-embedding-ada-002
-        response = openai.Embedding.create(model="text-embedding-ada-002", input=first_page_txt)
+        response = openai.Embedding.create(
+            model="text-embedding-ada-002", input=first_page_txt
+        )
         print("RESPONSE: ", response)
-        embeddings = response['data'][0]['embedding']
+        embeddings = response["data"][0]["embedding"]
         print("EMBEDDINGS", len(embeddings))
 
-        Embedding.objects.create(raw_text='John', text_source='John', 
-                                 doc_vectors='hello')
-        
-        return JsonResponse({'status': 'file upload successful'})
+        Embedding.objects.create(
+            raw_text="John", text_source="John", doc_vectors="hello"
+        )
+
+        return JsonResponse({"status": "file upload successful"})
+
 
 @api_view(["POST"])
 def create_embeddings(_):
     chunks = loader.load_pdfs()
+    for chunk in chunks:
+        print("CHUNK")
+        print(chunk)
     embeddings.create_embeddings(chunks=chunks, index_name="embeddings")
 
-    return Response(
-        f"Created embeddings index",
-        status=status.HTTP_201_CREATED,
-    )
+    # return Response(
+    #     f"Created embeddings index",
+    #     status=status.HTTP_201_CREATED,
+    # )
 
 
 def generate_short_id(length=6):
