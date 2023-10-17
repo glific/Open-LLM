@@ -94,6 +94,12 @@ To upload a file from `llm/data/sources/*` and ultimately create embeddings out 
 curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: multipart/form-data" -F "file=@llm/data/sources/ANXIETY.docx.pdf" http://localhost:8000/api/upload
 ```
 
+For testing and convenience, running the `upload_docs.sh` script will upload all the files in `llm/data/sources/*` for embeddings to be created out of them.
+
+```bash
+./upload_docs.sh
+```
+
 ### Query
 
 For testing the LLM, we are using [HTTPie](https://httpie.io) because of its succint syntax. You may alternatively use curl or Postman or your favorite HTTP client for this.
