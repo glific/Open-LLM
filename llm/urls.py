@@ -17,10 +17,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from llm.api import create_chat, create_embeddings
+from llm.api import create_chat, create_embeddings, set_system_prompt
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/chat", create_chat, name="create_chat"),
     path("api/embeddings", create_embeddings, name="create_embeddings"),
+    path("api/system_prompt", set_system_prompt, name="set_system_prompt"),
 ]

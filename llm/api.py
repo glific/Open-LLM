@@ -11,6 +11,7 @@ from .chains.functions import detect_languages_chain
 from .chains.chat import run_chat_chain
 from .chains import embeddings
 from .data import loader
+from .models import Organization
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
@@ -62,6 +63,42 @@ def create_embeddings(_):
         f"Created embeddings index",
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+def set_system_prompt(request):
+    system_prompt = request.data.get("system_prompt").strip()
+    org = current_org(request)
+    if not org:
+        return Response(
+            f"Invalid API key",
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return Response(
+        f"Updated System Prompt",
+        status=status.HTTP_201_CREATED,
+    )
+
+
+def current_org(request):
+    api_key = request.headers.get("Authorization")
+    if not api_key:
+        return None
+
+    try:
+        return Organization.objects.get(api_key=api_key)
+    except Organization.DoesNotExist:
+        return None
 
 
 def generate_short_id(length=6):
