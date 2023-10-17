@@ -71,7 +71,7 @@ def set_system_prompt(request):
     org = current_org(request)
     if not org:
         return Response(
-            f"Organization not found",
+            f"Invalid API key",
             status=status.HTTP_404_NOT_FOUND,
         )
 
