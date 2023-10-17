@@ -145,3 +145,9 @@ To make requests to the API with the organization's API key, use the following c
 ```bash
 curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"system_prompt":"You are a chatbot that formats your responses as poetry."}' http://localhost:8000/api/system_prompt
 ```
+
+To upload a file from `llm/data/sources/*` and ultimately create embeddings out of it, use the following command:
+
+```bash
+curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: multipart/form-data" -F "file=@llm/data/sources/ANXIETY.docx.pdf" http://localhost:8000/api/upload
+```

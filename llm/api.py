@@ -65,45 +65,50 @@ class FileUploadView(APIView):
     parser_classes = (MultiPartParser,)
 
     def post(self, request, format=None):
-        if "file" not in request.data:
-            raise ValueError("Empty content")
+        try:
+            org = current_org(request)
+            if not org:
+                return Response(
+                    f"Invalid API key",
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        file = request.data["file"]
+            if "file" not in request.data:
+                raise ValueError("Empty content")
 
-        print(type(file))
+            file = request.data["file"]
 
-        # 1. Turn file into text
-        pdf_reader = PdfReader(file)
-        first_page_txt = pdf_reader.pages[0].extract_text().replace("\n", " ")
-        print("FIRST PDF TEXT:", first_page_txt)
+            pdf_reader = PdfReader(file)
+            for page in pdf_reader.pages:
+                page_text = page.extract_text().replace("\n", " ")
 
-        # 2. Turn text into embeddings using text-embedding-ada-002
-        response = openai.Embedding.create(
-            model="text-embedding-ada-002", input=first_page_txt
-        )
-        print("RESPONSE: ", response)
-        embeddings = response["data"][0]["embedding"]
-        print("EMBEDDINGS", len(embeddings))
+                response = openai.Embedding.create(
+                    model="text-embedding-ada-002", input=page_text
+                )
 
-        Embedding.objects.create(
-            raw_text="John", text_source="John", doc_vectors="hello"
-        )
+                embeddings = response["data"][0]["embedding"]
+                if len(embeddings) != 1536:
+                    raise ValueError(f"Invalid embedding length: #{len(embeddings)}")
 
-        return JsonResponse({"status": "file upload successful"})
+                Embedding.objects.create(
+                    source_name=file.name,
+                    original_text=page_text,
+                    text_vectors=embeddings,
+                    organization=org,
+                )
 
-
-@api_view(["POST"])
-def create_embeddings(_):
-    chunks = loader.load_pdfs()
-    for chunk in chunks:
-        print("CHUNK")
-        print(chunk)
-    # embeddings.create_embeddings(chunks=chunks, index_name="embeddings")
-
-    # return Response(
-    #     f"Created embeddings index",
-    #     status=status.HTTP_201_CREATED,
-    # )
+            return JsonResponse({"status": "file upload successful"})
+        except ValueError as error:
+            return Response(
+                f"Invalid file: {error}",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as error:
+            print(f"Error: {error}")
+            return Response(
+                f"Something went wrong",
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 @api_view(["POST"])

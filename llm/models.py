@@ -30,7 +30,7 @@ class Embedding(models.Model):
     id = models.AutoField(primary_key=True)
     source_name = models.TextField()
     original_text = models.TextField()
-    text_vectors = VectorField(dimensions=1563, null=True)
+    text_vectors = VectorField(dimensions=1536, null=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
 
     class Meta:
