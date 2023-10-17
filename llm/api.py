@@ -89,6 +89,30 @@ def set_system_prompt(request):
         status=status.HTTP_201_CREATED,
     )
 
+@api_view(["POST"])
+def set_message_prompt(request):
+    message_prompt = request.data.get("message_prompt").strip()
+    org = current_org(request)
+    if not org:
+        return Response(
+            f"Invalid API key",
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        Organization.objects.filter(id=org.id).update(message_prompt=message_prompt)
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return Response(
+        f"Updated Message Prompt",
+        status=status.HTTP_201_CREATED,
+    )
+
 
 def current_org(request):
     api_key = request.headers.get("Authorization")
