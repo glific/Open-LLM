@@ -150,6 +150,7 @@ curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: applica
 }
 ```
 
+
 The default model used is [`gpt-3.5-turbo`](https://platform.openai.com/docs/models/gpt-3-5) but you can specify a different GPT model by passing a `gpt_model` parameter in the request body.
 
 ```bash

@@ -1,3 +1,4 @@
+import psycopg2, os
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts.chat import (
@@ -5,6 +6,9 @@ from langchain.prompts.chat import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
+
+from langchain.vectorstores.pgvector import PGVector
+from langchain.embeddings.openai import OpenAIEmbeddings
 
 from llm.chains import memory
 from llm.chains.embeddings import get_pgvector_idx

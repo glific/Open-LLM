@@ -38,6 +38,7 @@ def create_chat(request):
             )
 
         prompt = request.data.get("prompt").strip()
+
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
