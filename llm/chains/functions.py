@@ -50,8 +50,8 @@ detect_languages_schema = {
 }
 
 
-def detect_languages_chain():
-    llm = ChatOpenAI(model="gpt-4", temperature=0)
+def detect_languages_chain(model: str):
+    llm = ChatOpenAI(model=model, temperature=0)
     prompt = ChatPromptTemplate.from_messages(
         [
             (

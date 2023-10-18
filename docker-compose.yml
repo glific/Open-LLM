@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres
+    image: ankane/pgvector # https://hub.docker.com/r/ankane/pgvector
     environment:
       POSTGRES_DB: llm_db
       POSTGRES_USER: llm_agent

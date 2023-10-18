@@ -1,5 +1,7 @@
 from django.db import models
 
+from pgvector.django import VectorField
+
 
 class MessageStore(models.Model):
     """
@@ -22,3 +24,14 @@ class Organization(models.Model):
 
     class Meta:
         db_table = "organization"
+
+
+class Embedding(models.Model):
+    id = models.AutoField(primary_key=True)
+    source_name = models.TextField()
+    original_text = models.TextField()
+    text_vectors = VectorField(dimensions=1536, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "embedding"
