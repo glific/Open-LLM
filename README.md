@@ -163,3 +163,9 @@ curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: applica
   "session_id": "cfbQXg"
 }
 ```
+
+If you want to delete all the embeddings for a given organization, you can send a delete request to the following endpoint:
+
+```bash
+curl -X DELETE -H "Authorization: sk_EXAMPLE_SECRET_KEY" http://127.0.0.1:8000/api/embeddings
+```

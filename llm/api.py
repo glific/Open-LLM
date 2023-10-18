@@ -1,26 +1,24 @@
 import os
-import django
 import secrets
 import string
 
+import django
+from django.db import connection
+from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
-from llm.chains.embeddings import get_pgvector_idx
-
-from .chains.functions import detect_languages_chain
-from .chains.chat import run_chat_chain
-from .data import loader
-from .models import Organization
-
-from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 from pypdf import PdfReader
-from llm.models import Embedding
-
 import openai
+
+from .chains.embeddings import get_pgvector_idx
+
+from .chains.functions import detect_languages_chain
+from .chains.chat import run_chat_chain
+from .models import Organization
+
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
 
@@ -107,7 +105,7 @@ class FileUploadView(APIView):
                 if len(embeddings) != 1536:
                     raise ValueError(f"Invalid embedding length: #{len(embeddings)}")
 
-                # TODO: uncomment after move away from langchain to simplify code
+                # TODO: uncomment after possible move away from langchain to simplify code
                 # Embedding.objects.create(
                 #     source_name=file.name,
                 #     original_text=page_text,
@@ -134,6 +132,38 @@ class FileUploadView(APIView):
             )
 
 
+@api_view(["DELETE"])
+def delete_embeddings(request):
+    try:
+        org = current_organization(request)
+        if not org:
+            return Response(
+                f"Invalid API key",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # TODO: uncomment after possible move away from langchain to simplify code
+        # Embedding.objects.filter(organization_id=org.id).delete()
+
+        # Langchain pgvector connector doesn't have affordance for deleting all vectors by metadata filter so we use raw SQL to do this
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM langchain_pg_embedding WHERE cmetadata->>'organization_id' = %s",
+                [str(org.id)],
+            )
+
+        return Response(
+            f"Deleted all embeddings",
+            status=status.HTTP_204_NO_CONTENT,
+        )
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 @api_view(["POST"])
 def set_system_prompt(request):
     try:
@@ -145,7 +175,7 @@ def set_system_prompt(request):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-            Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
+        Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
 
         return Response(
             f"Updated System Prompt",
