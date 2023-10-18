@@ -13,6 +13,7 @@ pypdf = "*"
 openai = "*"
 python-dotenv = "*"
 psycopg = "*"
+pgvector = "*"
 
 [dev-packages]
 

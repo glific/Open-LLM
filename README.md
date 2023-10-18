@@ -69,64 +69,6 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-### Query
-
-For testing the LLM, we are using [HTTPie](https://httpie.io) because of its succint syntax. You may alternatively use curl or Postman or your favorite HTTP client for this.
-
-You can query the LLM using the following command:
-
-```bash
-curl -X POST -d "prompt=How can I help someone with anxiety" http://127.0.0.1:8000/api/chat
-```
-
-This will return a JSON endpoint with the LLM response as well as a session id.
-
-```json
-{
-  "answer": "If you know someone who is struggling with anxiety, there are several ways you can help:\n\n1. Express concern: Reach out to them and provide support by simply listening to what they have to say. Let them know they can come to you when they feel anxious and that you would like to be there for them.\n\n2. Know what is not helpful: It is important to understand that continuing to say \"don't worry about that because...\" is not actually helping, even if your friend or loved one thinks it is. Avoid forcing activities that you think might be helpful for them.\n\n3. Ask them: Don't assume things. Ask the person what they need and act accordingly. Make them feel that you are there for them and their needs.\n\n4. Listen non-judgmentally: If the person isn't in a crisis, ask how they're feeling and how long they've been feeling that way. Be patient and engaged while they speak. Ask clarifying questions and show that you care.\n\n5. Provide practical help: Offer your loved one practical assistance with tasks like getting groceries, cleaning, or household chores. Be careful not to take over or encourage dependency.\n\n6. Educate yourself: Understanding what helps anxiety takes time and effort. Make yourself aware of what anxiety is so that you don't provide any wrong information or invalid help.\n\nRemember, it's important to be supportive, patient, and understanding. Encourage them to seek professional help if needed.",
-  "chat_history": [],
-  "session_id": "e971aH"
-}
-```
-
-To ask a fellow up question, you can use the session id returned in the previous response:
-
-```bash
-curl -X POST -d "prompt=Give me examples of practical help I can offer" session_id="e971aH" http://127.0.0.1:8000/api/chat
-```
-
-```json
-{
-  "answer": "Here are some examples of practical help you can offer to someone:\n\n1. Offer to run errands or help with household tasks, like getting groceries, cleaning, or cooking.\n2. Provide transportation to appointments or offer to accompany them to medical or therapy appointments.\n3. Help with childcare or offer to babysit so they can have some time for themselves.\n4. Assist with paperwork or administrative tasks, such as filling out forms or organizing documents.\n5. Offer to help with technology-related issues, like setting up a new device or troubleshooting computer problems.\n6. Provide emotional support by being a good listener and offering a shoulder to lean on.\n7. Help them research and connect with local resources or support groups that may be beneficial to their situation.\n8. Offer to help with financial matters, such as budgeting or finding ways to save money.\n9. Assist in finding educational opportunities or job training programs to enhance their skills and improve their employment prospects.\n10. Help them explore and engage in activities that promote self-care and well-being, such as exercising together, practicing mindfulness, or participating in a hobby they enjoy.\n\nRemember, it's important to ask the person what they specifically need and respect their boundaries. Everyone's situation is unique, so offering tailored support can make a meaningful difference.",
-  "chat_history": [
-    [
-      ["content", "How can I help someone with anxiety"],
-      ["additional_kwargs", {}],
-      ["example", false]
-    ],
-    [
-      [
-        "content",
-        "If you know someone who is struggling with anxiety, there are several ways you can help:\n\n1. Express concern: Reach out to them and provide support by simply listening to what they have to say. Let them know they can come to you when they feel anxious and that you would like to be there for them.\n\n2. Know what is not helpful: It is important to understand that continuing to say \"don't worry about that because...\" is not actually helping, even if your friend or loved one thinks it is. Avoid forcing activities that you think might be helpful for them.\n\n3. Ask them: Don't assume things. Ask the person what they need and act accordingly. Make them feel that you are there for them and their needs.\n\n4. Listen non-judgmentally: If the person isn't in a crisis, ask how they're feeling and how long they've been feeling that way. Be patient and engaged while they speak. Ask clarifying questions and show that you care.\n\n5. Provide practical help: Offer your loved one practical assistance with tasks like getting groceries, cleaning, or household chores. Be careful not to take over or encourage dependency.\n\n6. Educate yourself: Understanding what helps anxiety takes time and effort. Make yourself aware of what anxiety is so that you don't provide any wrong information or invalid help.\n\nRemember, it's important to be supportive, patient, and understanding. Encourage them to seek professional help if needed."
-      ],
-      ["additional_kwargs", {}],
-      ["example", false]
-    ]
-  ],
-  "session_id": "e971aH"
-}
-```
-
-### Embeddings
-
-The source documents for the embeddings are stored locally in the `llm/data/sources` folder. To re-generate the embeddings, run:
-
-```bash
-curl -X POST  http://127.0.0.1:8000/api/embeddings
-```
-
-If you intend to utilize this with your custom documents, first remove all existing files within the same folder and then add your files. Afterward, rerun the above command.
-
 ### Seeding
 
 To seed the database with a sample organization, open a python shell (`python manage.py shell`) and run the following command:
@@ -144,4 +86,81 @@ To make requests to the API with the organization's API key, use the following c
 
 ```bash
 curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"system_prompt":"You are a chatbot that formats your responses as poetry."}' http://localhost:8000/api/system_prompt
+```
+
+To upload a file from `llm/data/sources/*` and ultimately create embeddings out of it, use the following command:
+
+```bash
+curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: multipart/form-data" -F "file=@llm/data/sources/ANXIETY.docx.pdf" http://localhost:8000/api/upload
+```
+
+For testing and convenience, running the `upload_docs.sh` script will upload all the files in `llm/data/sources/*` for embeddings to be created out of them.
+
+```bash
+./upload_docs.sh
+```
+
+### Query
+
+For testing the LLM, we are using [HTTPie](https://httpie.io) because of its succint syntax. You may alternatively use curl or Postman or your favorite HTTP client for this.
+
+You can query the LLM using the following command:
+
+```bash
+curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"prompt": "Peshab ki jagah se kharash ho rahi hai"}' http://localhost:8000/api/chat
+```
+
+This will return a JSON endpoint with the LLM response as well as a session id.
+
+```json
+{
+  "answer": "Aapki samasya ke liye dhanyavaad. Yah peshab ke samay kharash ki samasya ho sakti hai. Isko urinary tract infection (UTI) kaha jata hai. Urinary tract infection utpann hone ka mukhya karan antarik infection ho sakta hai.",
+  "chat_history": [],
+  "session_id": "uhh0pq"
+}
+```
+
+To ask a fellow up question, you can use the session id returned in the previous response:
+
+```bash
+curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"prompt":"Peshab ki jagah kharash hai","session_id":"uhh0pq"}' http://127.0.0.1:8000/api/chat
+```
+
+```json
+{
+  "answer": "aapki samasya ke liye dhanyavad. Yah peshaab ki jagah me kharash ho sakti hai. Isko urinary tract infection (UTI) kaha jata hai. UTI utpann hone ka mukhya karan aantarik infection ho sakta hai.",
+  "chat_history": [
+    [
+      ["content", "Peshab ki jagah se kharash ho rahi hai"],
+      ["additional_kwargs", {}],
+      ["type", "human"],
+      ["example", false]
+    ],
+    [
+      [
+        "content",
+        "Aapki samasya ke liye dhanyavaad. Yah peshab ke samay kharash ki samasya ho sakti hai. Isko urinary tract infection (UTI) kaha jata hai. Urinary tract infection utpann hone ka mukhya karan antarik infection ho sakta hai."
+      ],
+      ["additional_kwargs", {}],
+      ["type", "ai"],
+      ["example", false]
+    ]
+  ],
+  "session_id": "uhh0pq"
+}
+```
+
+
+The default model used is [`gpt-3.5-turbo`](https://platform.openai.com/docs/models/gpt-3-5) but you can specify a different GPT model by passing a `gpt_model` parameter in the request body.
+
+```bash
+curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"prompt":"Mujhe peshab ki jagah pe kharash ho rahi hai","gpt_model":"gpt-3.5-turbo-16k"}' http://127.0.0.1:8000/api/chat
+```
+
+```json
+{
+  "answer": "Aapki samasya ke liye dhanyavaad. Yah peshaab karne ke samay kharash ki samasya ho sakti hai. Isko urinary tract infection (UTI) kaha jata hai. UTI utpann hone ka mukhya karan aantrik infection ho sakta hai.",
+  "chat_history": [],
+  "session_id": "cfbQXg"
+}
 ```
