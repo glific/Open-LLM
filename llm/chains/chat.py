@@ -36,7 +36,11 @@ def run_chat_chain(
         doc.page_content
         for doc in retriever.get_relevant_documents(english_translation_prompt)
     )
+
+    # Pull previous message in this conversation history based on session id
     chain_memory = memory.conversation_history(session_id=session_id)
+
+    # 2. Retrieval QA
     chain_prompt = chat_chain_prompt(
         organization_id=organization_id,
         language=primary_language,

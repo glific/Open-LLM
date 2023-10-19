@@ -2,6 +2,7 @@ import os
 import django
 import secrets
 import string
+import json
 
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -38,39 +39,100 @@ def create_chat(request):
             )
 
         prompt = request.data.get("prompt").strip()
-
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
-        language_detector = detect_languages_chain(gpt_model)
-        languages = language_detector.run(prompt)
-
-        print(f"Language detector chain result: {languages}")
-
-        primary_language = languages["primary_detected_language"]
-        english_translation_prompt = languages["translation_to_english"]
-
-        response = run_chat_chain(
-            prompt=prompt,
-            session_id=session_id,
-            primary_language=primary_language,
-            english_translation_prompt=english_translation_prompt,
-            organization_id=organization.id,
-            gpt_model=gpt_model,
+        # 1. Function calling to do language detection of the user answer(1st call to OpenAI)
+        response = openai.ChatCompletion.create(
+            model=gpt_model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Detect the languages in this text: {prompt}",
+                }
+            ],
+            functions=[
+                {
+                    "name": "detect_languages",
+                    "description": "Detecting language and other insights on a piece of user input text.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "language": {
+                                "title": "Language",
+                                "description": "The primary detected language e.g English, French, Hindi, etc",
+                                "type": "string",
+                            },
+                            "confidence": {
+                                "title": "Confidence",
+                                "description": "Confidence level of the language detection from scale of 0 to 1",
+                                "type": "number",
+                            },
+                            "english_translation": {
+                                "title": "English translation",
+                                "description": "English translation of the user input text if not in English",
+                                "type": "string",
+                            },
+                            "translation_confidence": {
+                                "title": "Confidence",
+                                "description": "Confidence level of the language translation to English from scale of 0 to 1",
+                                "type": "number",
+                            },
+                        },
+                        "required": [
+                            "language",
+                            "confidence",
+                            "english_translation",
+                            "translation_confidence",
+                        ],
+                    },
+                }
+            ],
+            function_call={"name": "detect_languages"},
+            temperature=0,
         )
-
-        print(f"Chat chain result: {response}")
-
-        del response["source_documents"]
+        language_results = json.loads(
+            response["choices"][0]["message"]["function_call"]["arguments"]
+        )
 
         return Response(
-            {
-                "answer": response["result"],
-                "chat_history": response["chat_history"],
-                "session_id": session_id,
-            },
+            {"language_results": language_results},
             status=status.HTTP_201_CREATED,
         )
+
+        # 2. Pull relevant chunks from vector database
+
+        # 3. Retrievial question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
+
+        # language_detector = detect_languages_chain(gpt_model)
+        # languages = language_detector.run(prompt)
+
+        # print(f"Language detector chain result: {languages}")
+
+        # primary_language = languages["primary_detected_language"]  # Hindi, English, etc
+        # english_translation_prompt = languages["translation_to_english"]
+
+        # response = run_chat_chain(
+        #     prompt=prompt,
+        #     session_id=session_id,
+        #     primary_language=primary_language,
+        #     english_translation_prompt=english_translation_prompt,
+        #     organization_id=organization.id,
+        #     gpt_model=gpt_model,
+        # )
+
+        # print(f"Chat chain result: {response}")
+
+        # del response["source_documents"]
+
+        # return Response(
+        #     {
+        #         "answer": response["result"],
+        #         "chat_history": response["chat_history"],
+        #         "session_id": session_id,
+        #     },
+        #     status=status.HTTP_201_CREATED,
+        # )
     except Exception as error:
         print(f"Error: {error}")
         return Response(
