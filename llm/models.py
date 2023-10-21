@@ -10,7 +10,8 @@ class MessageStore(models.Model):
 
     id = models.AutoField(primary_key=True)
     session_id = models.TextField()
-    message = models.JSONField()
+    type = models.CharField(max_length=50, default="human", choices=(("ai", "ai"), ("human", "human")))
+    message = models.TextField()
 
     class Meta:
         db_table = "message_store"
