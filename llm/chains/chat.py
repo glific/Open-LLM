@@ -60,34 +60,27 @@ def run_chat_chain(
     return result
 
 
-def chat_chain_prompt(
-    organization_id: int, language: str, english_context: str
-) -> ChatPromptTemplate:
+def context_prompt_messages(
+    organization_id: int, language: str, english_context: str, question: str
+) -> list[dict]:
     org_system_prompt = Organization.objects.get(id=organization_id).system_prompt
-    system_message_prompt = SystemMessagePromptTemplate.from_template(org_system_prompt)
-    human_message_prompt = HumanMessagePromptTemplate.from_template(
-        """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+    system_message_prompt = {"role": "system", "content": org_system_prompt}
+    human_message_prompt = {
+        "role": "user",
+        "content": f"""Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
         Context:
 
         {english_context}
-        {context}
 
-        Samples:
+        Examples:
 
-        User Question: Peshab ki jagah se kharash ho rahi hai
+        Question: Peshab ki jagah se kharash ho rahi hai
         Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
 
-        User Question: {question}
+        User question: {question}
 
-        Chatbot Answer in {language}:""".replace(
-            "{language}",
-            f"{language} (Roman characters)" if language == "Hindi" else language,
-        ).replace(
-            "{english_context}", "" if language == "English" else english_context
-        )
-    )
-    chat_prompt = ChatPromptTemplate.from_messages(
-        [system_message_prompt, human_message_prompt]
-    )
-    return chat_prompt
+        """,
+    }
+    chat_prompt_messages = [system_message_prompt, human_message_prompt]
+    return chat_prompt_messages
