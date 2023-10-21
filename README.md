@@ -45,16 +45,22 @@ docker-compose up
 
 We use Python 3.9 pipenv for managing dependencies and create the virtual environment.
 
-Start a virtualenv using pipenv:
+Create a virtualenv using pipenv:
 
 ```bash
-pipenv shell
+python -m venv venv
+```
+
+Activate the virtualenv:
+
+```bash
+source venv/bin/activate
 ```
 
 Install the dependencies, run:
 
 ```bash
-pipenv install
+pip install -r requirements.txt
 ```
 
 Run migration
