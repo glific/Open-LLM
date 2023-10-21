@@ -12,6 +12,8 @@ from llm.chains.embeddings import get_pgvector_idx
 
 from .chains.functions import detect_languages_chain
 from .chains.chat import run_chat_chain
+from llm.chains.chat import context_prompt_messages
+from pgvector.django import L2Distance
 from .data import loader
 from .models import Organization
 
@@ -19,13 +21,20 @@ from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 from pypdf import PdfReader
-from llm.models import Embedding
+from llm.models import Embedding, MessageStore
 
 import openai
+from logging import basicConfig, INFO, getLogger
+
+
+basicConfig(level=INFO)
+logger = getLogger()
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
 
 django.setup()
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 @api_view(["POST"])
@@ -91,48 +100,64 @@ def create_chat(request):
             function_call={"name": "detect_languages"},
             temperature=0,
         )
+
         language_results = json.loads(
             response["choices"][0]["message"]["function_call"]["arguments"]
         )
-
-        return Response(
-            {"language_results": language_results},
-            status=status.HTTP_201_CREATED,
-        )
+        logger.info("Fetched language results via function calls")
+        logger.info("language detected", language_results["language"])
 
         # 2. Pull relevant chunks from vector database
+        prompt_embeddings = openai.Embedding.create(
+            model="text-embedding-ada-002", input=prompt
+        )["data"][0]["embedding"]
+
+        results = Embedding.objects.alias(
+            distance=L2Distance("text_vectors", prompt_embeddings)
+        ).filter(distance__gt=0.7)
+
+        relevant_english_context = "".join(result.original_text for result in results)
+        logger.info("retrieved the relevant document context from db")
 
         # 3. Retrievial question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
+        response = openai.ChatCompletion.create(
+            model=gpt_model,
+            messages=context_prompt_messages(
+                organization.id,
+                language_results["language"],
+                relevant_english_context,
+                language_results["english_translation"],
+            ),
+        )
+        logger.info("received response from the ai bot for the current prompt")
 
-        # language_detector = detect_languages_chain(gpt_model)
-        # languages = language_detector.run(prompt)
+        prompt_ans = response.choices[0].message.content
 
-        # print(f"Language detector chain result: {languages}")
+        # 4. Fetch the chat history from our message store
+        historical_chats = MessageStore.objects.filter(session_id=session_id).all()
 
-        # primary_language = languages["primary_detected_language"]  # Hindi, English, etc
-        # english_translation_prompt = languages["translation_to_english"]
+        # 5. Store the current question and ans to the message store
+        MessageStore.objects.create(session_id=session_id, type="human", message=prompt)
+        MessageStore.objects.create(
+            session_id=session_id, type="ai", message=prompt_ans
+        )
 
-        # response = run_chat_chain(
-        #     prompt=prompt,
-        #     session_id=session_id,
-        #     primary_language=primary_language,
-        #     english_translation_prompt=english_translation_prompt,
-        #     organization_id=organization.id,
-        #     gpt_model=gpt_model,
-        # )
-
-        # print(f"Chat chain result: {response}")
-
-        # del response["source_documents"]
-
-        # return Response(
-        #     {
-        #         "answer": response["result"],
-        #         "chat_history": response["chat_history"],
-        #         "session_id": session_id,
-        #     },
-        #     status=status.HTTP_201_CREATED,
-        # )
+        return Response(
+            {
+                "answer": prompt_ans,
+                "chat_history": [
+                    [
+                        ["content", chat.message],
+                        ["additional_kwargs", {}],
+                        ["type", chat.type],
+                        ["example", False],
+                    ]
+                    for chat in historical_chats
+                ],
+                "session_id": session_id,
+            },
+            status=status.HTTP_201_CREATED,
+        )
     except Exception as error:
         print(f"Error: {error}")
         return Response(
@@ -170,17 +195,11 @@ class FileUploadView(APIView):
                 if len(embeddings) != 1536:
                     raise ValueError(f"Invalid embedding length: #{len(embeddings)}")
 
-                # TODO: uncomment after move away from langchain to simplify code
-                # Embedding.objects.create(
-                #     source_name=file.name,
-                #     original_text=page_text,
-                #     text_vectors=embeddings,
-                #     organization=org,
-                # )
-
-                pgvector_idx = get_pgvector_idx()
-                pgvector_idx.add_texts(
-                    texts=[page_text], metadatas=[{"organization_id": org.id}]
+                Embedding.objects.create(
+                    source_name=file.name,
+                    original_text=page_text,
+                    text_vectors=embeddings,
+                    organization=org,
                 )
 
             return JsonResponse({"status": "file upload successful"})
@@ -208,7 +227,7 @@ def set_system_prompt(request):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-            Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
+        Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
 
         return Response(
             f"Updated System Prompt",
