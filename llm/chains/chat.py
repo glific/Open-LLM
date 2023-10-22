@@ -1,18 +1,10 @@
 import psycopg2, os
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
-from langchain.prompts.chat import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-)
-
-from langchain.vectorstores.pgvector import PGVector
-from langchain.embeddings.openai import OpenAIEmbeddings
 
 from llm.chains import memory
 from llm.chains.embeddings import get_pgvector_idx
-from llm.models import Organization
+from llm.models import Organization, Message
 
 
 def run_chat_chain(
@@ -61,7 +53,11 @@ def run_chat_chain(
 
 
 def context_prompt_messages(
-    organization_id: int, language: str, english_context: str, question: str
+    organization_id: int,
+    language: str,
+    english_context: str,
+    question: str,
+    historical_chats: list[Message],
 ) -> list[dict]:
     org_system_prompt = Organization.objects.get(id=organization_id).system_prompt
     system_message_prompt = {"role": "system", "content": org_system_prompt}
@@ -82,5 +78,9 @@ def context_prompt_messages(
         Chatbot Answer in {language}:
         """,
     }
-    chat_prompt_messages = [system_message_prompt, human_message_prompt]
+    chat_prompt_messages = (
+        [system_message_prompt]
+        + [{"role": chat.role, "content": chat.message} for chat in historical_chats]
+        + [human_message_prompt]
+    )
     return chat_prompt_messages

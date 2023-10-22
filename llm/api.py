@@ -114,7 +114,10 @@ def create_chat(request):
         relevant_english_context = "".join(result.original_text for result in results)
         logger.info("retrieved the relevant document context from db")
 
-        # 3. Retrievial question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
+        # 3. Fetch the chat history from our message store to send to openai and back in the response
+        historical_chats = Message.objects.filter(session_id=session_id).all()
+
+        # 4. Retrievial question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
         response = openai.ChatCompletion.create(
             model=gpt_model,
             messages=context_prompt_messages(
@@ -122,14 +125,12 @@ def create_chat(request):
                 language_results["language"],
                 relevant_english_context,
                 language_results["english_translation"],
+                historical_chats,
             ),
         )
         logger.info("received response from the ai bot for the current prompt")
 
         prompt_response = response.choices[0].message
-
-        # 4. Fetch the chat history from our message store
-        historical_chats = Message.objects.filter(session_id=session_id).all()
 
         # 5. Store the current question and ans to the message store
         Message.objects.create(session_id=session_id, role="user", message=prompt)
