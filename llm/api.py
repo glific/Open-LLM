@@ -132,10 +132,10 @@ def create_chat(request):
         historical_chats = Message.objects.filter(session_id=session_id).all()
 
         # 5. Store the current question and ans to the message store
-        Message.objects.create(session_id=session_id, type="user", message=prompt)
+        Message.objects.create(session_id=session_id, role="user", message=prompt)
         Message.objects.create(
             session_id=session_id,
-            type=prompt_response.role,
+            role=prompt_response.role,
             message=prompt_response.content,
         )
 
@@ -143,12 +143,7 @@ def create_chat(request):
             {
                 "answer": prompt_response.content,
                 "chat_history": [
-                    [
-                        ["content", chat.message],
-                        ["additional_kwargs", {}],
-                        ["type", chat.type],
-                        ["example", False],
-                    ]
+                    {"role": chat.role, "message": chat.message}
                     for chat in historical_chats
                 ],
                 "session_id": session_id,

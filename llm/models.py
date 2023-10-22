@@ -10,7 +10,7 @@ class Message(models.Model):
 
     id = models.AutoField(primary_key=True)
     session_id = models.TextField()
-    type = models.CharField(
+    role = models.CharField(
         max_length=50,
         default="user",
         choices=(("system", "system"), ("user", "user"), ("assistant", "assistant")),
