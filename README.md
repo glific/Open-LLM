@@ -43,9 +43,9 @@ docker-compose up
 
 ### Project dependencies
 
-We use Python 3.9 pipenv for managing dependencies and create the virtual environment.
+This project uses Python 3.9 and virtual environments:
 
-Create a virtualenv using pipenv:
+Create a virtualenv:
 
 ```bash
 python -m venv venv

@@ -78,8 +78,8 @@ def context_prompt_messages(
         Question: Peshab ki jagah se kharash ho rahi hai
         Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
 
-        User question: {question}
-
+        Question: {question}
+        Chatbot Answer in {language}:
         """,
     }
     chat_prompt_messages = [system_message_prompt, human_message_prompt]
