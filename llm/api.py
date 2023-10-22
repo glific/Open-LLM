@@ -51,7 +51,7 @@ def create_chat(request):
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
-        # 1. Function calling to do language detection of the user answer(1st call to OpenAI)
+        # 1. Function calling to do language detection of the user's question (1st call to OpenAI)
         response = openai.ChatCompletion.create(
             model=gpt_model,
             messages=[
