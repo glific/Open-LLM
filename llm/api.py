@@ -126,18 +126,22 @@ def create_chat(request):
         )
         logger.info("received response from the ai bot for the current prompt")
 
-        prompt_ans = response.choices[0].message.content
+        prompt_response = response.choices[0].message
 
         # 4. Fetch the chat history from our message store
         historical_chats = Message.objects.filter(session_id=session_id).all()
 
         # 5. Store the current question and ans to the message store
-        Message.objects.create(session_id=session_id, type="human", message=prompt)
-        Message.objects.create(session_id=session_id, type="ai", message=prompt_ans)
+        Message.objects.create(session_id=session_id, type="user", message=prompt)
+        Message.objects.create(
+            session_id=session_id,
+            type=prompt_response.role,
+            message=prompt_response.content,
+        )
 
         return Response(
             {
-                "answer": prompt_ans,
+                "answer": prompt_response.content,
                 "chat_history": [
                     [
                         ["content", chat.message],
