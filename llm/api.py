@@ -8,20 +8,15 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from llm.chains.embeddings import get_pgvector_idx
-
-from .chains.functions import detect_languages_chain
-from .chains.chat import run_chat_chain
 from llm.chains.chat import context_prompt_messages
 from pgvector.django import L2Distance
-from .data import loader
 from .models import Organization
 
 from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 from pypdf import PdfReader
-from llm.models import Embedding, MessageStore
+from llm.models import Embedding, Message
 
 import openai
 from logging import basicConfig, INFO, getLogger
@@ -105,7 +100,7 @@ def create_chat(request):
             response["choices"][0]["message"]["function_call"]["arguments"]
         )
         logger.info("Fetched language results via function calls")
-        logger.info("language detected", language_results["language"])
+        logger.info("language detected")
 
         # 2. Pull relevant chunks from vector database
         prompt_embeddings = openai.Embedding.create(
@@ -134,13 +129,11 @@ def create_chat(request):
         prompt_ans = response.choices[0].message.content
 
         # 4. Fetch the chat history from our message store
-        historical_chats = MessageStore.objects.filter(session_id=session_id).all()
+        historical_chats = Message.objects.filter(session_id=session_id).all()
 
         # 5. Store the current question and ans to the message store
-        MessageStore.objects.create(session_id=session_id, type="human", message=prompt)
-        MessageStore.objects.create(
-            session_id=session_id, type="ai", message=prompt_ans
-        )
+        Message.objects.create(session_id=session_id, type="human", message=prompt)
+        Message.objects.create(session_id=session_id, type="ai", message=prompt_ans)
 
         return Response(
             {
