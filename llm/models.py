@@ -3,17 +3,22 @@ from django.db import models
 from pgvector.django import VectorField
 
 
-class MessageStore(models.Model):
+class Message(models.Model):
     """
-    See Langchain source code for the table schema we match here: https://github.com/langchain-ai/langchain/blob/7fa82900cb15d9c41099ad7dbb8aaa66941f6905/libs/langchain/langchain/memory/chat_message_histories/postgres.py#L39-L42
+    Stores the chat history
     """
 
     id = models.AutoField(primary_key=True)
     session_id = models.TextField()
-    message = models.JSONField()
+    role = models.CharField(
+        max_length=50,
+        default="user",
+        choices=(("system", "system"), ("user", "user"), ("assistant", "assistant")),
+    )
+    message = models.TextField()
 
     class Meta:
-        db_table = "message_store"
+        db_table = "messages"
 
 
 class Organization(models.Model):

@@ -2,29 +2,34 @@ import os
 import django
 import secrets
 import string
+import json
 
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from llm.chains.embeddings import get_pgvector_idx
-
-from .chains.functions import detect_languages_chain
-from .chains.chat import run_chat_chain
-from .data import loader
+from llm.chains.chat import context_prompt_messages
+from pgvector.django import L2Distance
 from .models import Organization
 
 from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 from pypdf import PdfReader
-from llm.models import Embedding
+from llm.models import Embedding, Message
 
 import openai
+from logging import basicConfig, INFO, getLogger
+
+
+basicConfig(level=INFO)
+logger = getLogger()
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
 
 django.setup()
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 @api_view(["POST"])
@@ -38,35 +43,110 @@ def create_chat(request):
             )
 
         prompt = request.data.get("prompt").strip()
-
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_short_id()).strip()
 
-        language_detector = detect_languages_chain(gpt_model)
-        languages = language_detector.run(prompt)
-
-        print(f"Language detector chain result: {languages}")
-
-        primary_language = languages["primary_detected_language"]
-        english_translation_prompt = languages["translation_to_english"]
-
-        response = run_chat_chain(
-            prompt=prompt,
-            session_id=session_id,
-            primary_language=primary_language,
-            english_translation_prompt=english_translation_prompt,
-            organization_id=organization.id,
-            gpt_model=gpt_model,
+        # 1. Function calling to do language detection of the user's question (1st call to OpenAI)
+        response = openai.ChatCompletion.create(
+            model=gpt_model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Detect the languages in this text: {prompt}",
+                }
+            ],
+            functions=[
+                {
+                    "name": "detect_languages",
+                    "description": "Detecting language and other insights on a piece of user input text.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "language": {
+                                "title": "Language",
+                                "description": "The primary detected language e.g English, French, Hindi, etc",
+                                "type": "string",
+                            },
+                            "confidence": {
+                                "title": "Confidence",
+                                "description": "Confidence level of the language detection from scale of 0 to 1",
+                                "type": "number",
+                            },
+                            "english_translation": {
+                                "title": "English translation",
+                                "description": "English translation of the user input text if not in English",
+                                "type": "string",
+                            },
+                            "translation_confidence": {
+                                "title": "Confidence",
+                                "description": "Confidence level of the language translation to English from scale of 0 to 1",
+                                "type": "number",
+                            },
+                        },
+                        "required": [
+                            "language",
+                            "confidence",
+                            "english_translation",
+                            "translation_confidence",
+                        ],
+                    },
+                }
+            ],
+            function_call={"name": "detect_languages"},
+            temperature=0,
         )
 
-        print(f"Chat chain result: {response}")
+        language_results = json.loads(
+            response["choices"][0]["message"]["function_call"]["arguments"]
+        )
+        logger.info("Fetched language results via function calls")
+        logger.info("language detected")
 
-        del response["source_documents"]
+        # 2. Pull relevant chunks from vector database
+        prompt_embeddings = openai.Embedding.create(
+            model="text-embedding-ada-002", input=prompt
+        )["data"][0]["embedding"]
+
+        results = Embedding.objects.alias(
+            distance=L2Distance("text_vectors", prompt_embeddings)
+        ).filter(distance__gt=0.7)
+
+        relevant_english_context = "".join(result.original_text for result in results)
+        logger.info("retrieved the relevant document context from db")
+
+        # 3. Fetch the chat history from our message store to send to openai and back in the response
+        historical_chats = Message.objects.filter(session_id=session_id).all()
+
+        # 4. Retrievial question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
+        response = openai.ChatCompletion.create(
+            model=gpt_model,
+            messages=context_prompt_messages(
+                organization.id,
+                language_results["language"],
+                relevant_english_context,
+                language_results["english_translation"],
+                historical_chats,
+            ),
+        )
+        logger.info("received response from the ai bot for the current prompt")
+
+        prompt_response = response.choices[0].message
+
+        # 5. Store the current question and ans to the message store
+        Message.objects.create(session_id=session_id, role="user", message=prompt)
+        Message.objects.create(
+            session_id=session_id,
+            role=prompt_response.role,
+            message=prompt_response.content,
+        )
 
         return Response(
             {
-                "answer": response["result"],
-                "chat_history": response["chat_history"],
+                "answer": prompt_response.content,
+                "chat_history": [
+                    {"role": chat.role, "message": chat.message}
+                    for chat in historical_chats
+                ],
                 "session_id": session_id,
             },
             status=status.HTTP_201_CREATED,
@@ -108,17 +188,11 @@ class FileUploadView(APIView):
                 if len(embeddings) != 1536:
                     raise ValueError(f"Invalid embedding length: #{len(embeddings)}")
 
-                # TODO: uncomment after move away from langchain to simplify code
-                # Embedding.objects.create(
-                #     source_name=file.name,
-                #     original_text=page_text,
-                #     text_vectors=embeddings,
-                #     organization=org,
-                # )
-
-                pgvector_idx = get_pgvector_idx()
-                pgvector_idx.add_texts(
-                    texts=[page_text], metadatas=[{"organization_id": org.id}]
+                Embedding.objects.create(
+                    source_name=file.name,
+                    original_text=page_text,
+                    text_vectors=embeddings,
+                    organization=org,
                 )
 
             return JsonResponse({"status": "file upload successful"})
@@ -146,7 +220,7 @@ def set_system_prompt(request):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-            Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
+        Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
 
         return Response(
             f"Updated System Prompt",
