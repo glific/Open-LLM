@@ -25,7 +25,7 @@ class Message(models.Model):
 class Organization(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    api_key = models.CharField(max_length=255)
+    api_key = models.CharField(max_length=255, unique=True)
     system_prompt = models.TextField()
     evaluator_prompt = models.TextField(null=True)
 
