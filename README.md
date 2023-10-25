@@ -156,7 +156,6 @@ curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: applica
 }
 ```
 
-
 The default model used is [`gpt-3.5-turbo`](https://platform.openai.com/docs/models/gpt-3-5) but you can specify a different GPT model by passing a `gpt_model` parameter in the request body.
 
 ```bash
@@ -168,5 +167,33 @@ curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: applica
   "answer": "Aapki samasya ke liye dhanyavaad. Yah peshaab karne ke samay kharash ki samasya ho sakti hai. Isko urinary tract infection (UTI) kaha jata hai. UTI utpann hone ka mukhya karan aantrik infection ho sakta hai.",
   "chat_history": [],
   "session_id": "cfbQXg"
+}
+```
+
+### Evaluation
+
+To use an secondary LLM to evaluate the output of the primary LLM, users can set the evaluator prompt at the organization level:
+
+```sh
+curl -X POST -H 'Authorization: sk_ABC123' -d '{"evaluator_prompt": "You will be given one summary written for a news article. Your task is to rate the summary on one metric..."}' http://localhost:8000/api/evaluator_prompt
+```
+
+To run the evaluator, you simply call the chat endpoint with the `evaluator` parameter set to `true`:
+
+```sh
+curl -X POST -H 'Authorization: sk_ABC123' -d '{"evaluate": true, "prompt": "Peshab ki jagah se kharash ho rahi hai"}' http://localhost:8000/api/chat
+```
+
+The response will include your specific evaluation scores in a `evaluation_scores` key in the response:
+
+```json
+{
+  "answer": "Aapki samasya ke liye dhanyavaad. Yah peshab ke samay kharash ki samasya ho sakti hai. Isko urinary tract infection (UTI) kaha jata hai. Urinary tract infection utpann hone ka mukhya karan antarik infection ho sakta hai.",
+  "chat_history": [],
+  "evaluation_scores": {
+    "coherence": 4,
+    "consistency": 3
+  },
+  "session_id": "uhh0pq"
 }
 ```
