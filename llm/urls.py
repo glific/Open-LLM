@@ -17,11 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from llm.api import create_chat, set_system_prompt, FileUploadView
+from llm.api import create_chat, set_system_prompt, FileUploadView, set_evaluator_prompt
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/chat", create_chat, name="create_chat"),
     path("api/upload", FileUploadView.as_view(), name="file_upload"),
     path("api/system_prompt", set_system_prompt, name="set_system_prompt"),
+    path("api/evaluator_prompt", set_evaluator_prompt, name="set_evaluator_prompt"),
 ]

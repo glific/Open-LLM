@@ -248,3 +248,30 @@ def current_organization(request):
 def generate_short_id(length=6):
     alphanumeric = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphanumeric) for _ in range(length))
+
+
+@api_view(["POST"])
+def set_evaluator_prompt(request):
+    try:
+        print(request.data)
+        evaluator_prompt = request.data.get("evaluator_prompt").strip()
+        org = current_organization(request)
+        logger.debug("ORG", org)
+        if not org:
+            return Response(
+                f"Invalid API key",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        Organization.objects.filter(id=org.id).update(evaluator_prompt=evaluator_prompt)
+
+        return Response(
+            f"Updated Evaluator Prompt",
+            status=status.HTTP_201_CREATED,
+        )
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

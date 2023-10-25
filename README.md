@@ -174,14 +174,40 @@ curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: applica
 
 To use an secondary LLM to evaluate the output of the primary LLM, users can set the evaluator prompt at the organization level:
 
+REFERENCE G-EVAL PROMPT:
+
+```
+You will be given one summary written for a news article.
+Your task is to rate the summary on one metric.
+Please make sure you read and understand these instructions carefully. Please keep this
+document open while reviewing, and refer to it as needed.
+Evaluation Criteria:
+Coherence (1-5) - the collective quality of all sentences. We align this dimension with
+the DUC quality question of structure and coherence whereby ”the summary should be
+well-structured and well-organized. The summary should not just be a heap of related information, but should build from sentence to sentence to a coherent body of information about a topic.”
+Evaluation Steps:
+1. Read the news article carefully and identify the main topic and key points.
+2. Read the summary and compare it to the news article. Check if the summary covers the main
+topic and key points of the news article, and if it presents them in a clear and logical order.
+3. Assign a score for coherence on a scale of 1 to 5, where 1 is the lowest and 5 is the highest
+based on the Evaluation Criteria.
+Example:
+Source Text:
+{{Document}}
+Summary:
+{{Summary}}
+Evaluation Form (scores ONLY):
+- Coherence:
+```
+
 ```sh
-curl -X POST -H 'Authorization: sk_ABC123' -d '{"evaluator_prompt": "You will be given one summary written for a news article. Your task is to rate the summary on one metric..."}' http://localhost:8000/api/evaluator_prompt
+curl -X POST -H 'Authorization: sk_ABC123' -H 'Content-Type: application/json' -d '{"evaluator_prompt": "You will be given a response from a womens health chatbot.\nYour task is to rate the response on one metric.\nPlease make sure you read and understand these instructions carefully. Please keep this document open while reviewing, and refer to it as needed.\n\nEvaluation Criteria:\nFriendliness (1-10) - how friendly the response is to an audience of women who traditionally don'\''t have open conversations about health issues due to stigma.\n\nEvaluation Steps:\n1. Read the chatbot response in detail.\n2. Analyze the tone and word choice of the response.\n3. Considering the women are talking to this chatbot in private, assess whether the response is considerate of their situation.\n4. Assign a score for friendliness on a scale of 1 to 10, where 1 is the lowest and 10 is the highest based on the Evaluation Criteria.\n\nExample:\nUser Question:\n{{Question}}\nChatbot Response:\n{{Response}}\n\nEvaluation Form (scores ONLY):\n- Friendliness:"}' http://localhost:8000/api/evaluator_prompt
 ```
 
 To run the evaluator, you simply call the chat endpoint with the `evaluator` parameter set to `true`:
 
 ```sh
-curl -X POST -H 'Authorization: sk_ABC123' -d '{"evaluate": true, "prompt": "Peshab ki jagah se kharash ho rahi hai"}' http://localhost:8000/api/chat
+curl -X POST -H 'Authorization: sk_ABC123' -H 'Content-Type: application/json' -d '{"evaluate": true, "prompt": "Peshab ki jagah se kharash ho rahi hai"}' http://localhost:8000/api/chat
 ```
 
 The response will include your specific evaluation scores in a `evaluation_scores` key in the response:
