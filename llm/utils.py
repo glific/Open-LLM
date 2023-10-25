@@ -50,7 +50,9 @@ def evaluate_criteria_score(
             model=gpt_model,
             messages=[{"role": "system", "content": evaluator_prompt}],
         )
+        response_text = response.choices[0].message.content
 
-        evaluation_score = int(response.choices[0].message.content)
+        print(f"response_text: {response_text}")
+        evaluation_score = int(response_text)
 
     return evaluation_score
