@@ -3,23 +3,20 @@ import django
 import secrets
 import string
 import json
+from logging import basicConfig, INFO, getLogger
 
+from pypdf import PdfReader
+from pgvector.django import L2Distance
+from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
-from llm.chains.chat import context_prompt_messages
-from pgvector.django import L2Distance
-from .models import Organization
-
-from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
-from pypdf import PdfReader
-from llm.models import Embedding, Message
-
 import openai
-from logging import basicConfig, INFO, getLogger
+
+from llm.utils import context_prompt_messages, evaluate_criteria_score
+from llm.models import Organization, Embedding, Message
 
 
 basicConfig(level=INFO)
@@ -107,12 +104,16 @@ def create_chat(request):
             model="text-embedding-ada-002", input=prompt
         )["data"][0]["embedding"]
 
-        results = Embedding.objects.alias(
+        embedding_results = Embedding.objects.alias(
             distance=L2Distance("text_vectors", prompt_embeddings)
         ).filter(distance__gt=0.7)
 
-        relevant_english_context = "".join(result.original_text for result in results)
-        logger.info(f"retrieved {len(results)} relevant document context from db")
+        relevant_english_context = "".join(
+            result.original_text for result in embedding_results
+        )
+        logger.info(
+            f"retrieved {len(embedding_results)} relevant document context from db"
+        )
 
         # 3. Fetch the chat history from our message store to send to openai and back in the response
         historical_chats = Message.objects.filter(session_id=session_id).all()
@@ -127,51 +128,56 @@ def create_chat(request):
                 language_results["english_translation"],
                 historical_chats,
             ),
-            max_tokens=150,
+            # max_tokens=150,
         )
         logger.info("received response from the ai bot for the current prompt")
 
         prompt_response = response.choices[0].message
 
-        # 5. Store the current question and ans to the message store
-        Message.objects.create(session_id=session_id, role="user", message=prompt)
+        # 5. Evaluate if the request asks for it
+        evaluation_scores = {}
+        if request.data.get("evaluate"):
+            logger.info("Evaluting the response")
+            evaluator_prompts = organization.evaluator_prompts  # { 'coherence': ... }
+            for criteria, evaluator_prompt in evaluator_prompts.items():
+                score = evaluate_criteria_score(
+                    evaluator_prompt, prompt, prompt_response, gpt_model
+                )
+                evaluation_scores[criteria] = score
+                logger.info(f"Evaluated criteria: {criteria} with score: {score}")
+
+            logger.info("Completed evaluating the llm response", evaluator_prompts)
+
+        else:
+            logger.info("Evaluator prompt for the org has not been set")
+
+        # 6. Store the current question and ans to the message store
+        Message.objects.create(
+            session_id=session_id,
+            role="user",
+            message=prompt,
+            evaluation_score=evaluation_scores,
+        )
         Message.objects.create(
             session_id=session_id,
             role=prompt_response.role,
             message=prompt_response.content,
+            evaluation_score=evaluation_scores,
         )
-
-        # 6. Evaluate if the request asks for it
-        evaluation_score = None
-        if request.data.get("evaluate"):
-            evaluator_prompt = organization.evaluator_prompt
-            if evaluator_prompt is not None:
-                # replace the place holders for question and response in the evaluator prompt
-                evaluator_prompt = evaluator_prompt.replace(
-                    "{{QUESTION}}", prompt
-                ).replace("{{RESPONSE}}", prompt_response.content)
-
-                response = openai.ChatCompletion.create(
-                    model=gpt_model,
-                    messages=[{"role": "system", "content": evaluator_prompt}],
-                )
-
-                evaluation_score = response.choices[0].message.content
-
-                # TODO: save in the db later
-            else:
-                logger.info("Evalutor prompt for the org has not been set")
+        logger.info("Stored messages in django db")
 
         return Response(
             {
+                "question": prompt,
                 "answer": prompt_response.content,
                 "language_results": language_results,
+                "embedding_results_count": len(embedding_results),
                 "chat_history": [
                     {"role": chat.role, "message": chat.message}
                     for chat in historical_chats
                 ],
                 "session_id": session_id,
-                "evaluation_score": evaluation_score,
+                "evaluation_scores": evaluation_scores,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -277,17 +283,17 @@ def generate_short_id(length=6):
 @api_view(["POST"])
 def set_evaluator_prompt(request):
     try:
-        print(request.data)
-        evaluator_prompt = request.data.get("evaluator_prompt").strip()
+        evaluator_prompts = request.data.get("evaluator_prompts")
         org = current_organization(request)
-        logger.debug("ORG", org)
         if not org:
             return Response(
                 f"Invalid API key",
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        Organization.objects.filter(id=org.id).update(evaluator_prompt=evaluator_prompt)
+        Organization.objects.filter(id=org.id).update(
+            evaluator_prompts=evaluator_prompts
+        )
 
         return Response(
             f"Updated Evaluator Prompt",

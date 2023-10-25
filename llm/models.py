@@ -27,7 +27,9 @@ class Organization(models.Model):
     name = models.CharField(max_length=255)
     api_key = models.CharField(max_length=255, unique=True)
     system_prompt = models.TextField()
-    evaluator_prompt = models.TextField(null=True)
+    evaluator_prompts = models.JSONField(
+        null=True
+    )  # { "confidence": "Your task is to...", "friendliness": "Your task is to..." }
 
     class Meta:
         db_table = "organization"
