@@ -84,20 +84,20 @@ from llm.models import Organization
 Organization.objects.create(
   name="Myna Mahila",
   system_prompt="I want you to act as a chatbot for providing tailored sexual and reproductive health advice to women in India. You represent an organization called The Myna Mahila Foundation (mynamahila.com), an Indian organization which empowers women by encouraging discussion of taboo subjects such as menstruation, and by setting up workshops to produce low-cost sanitary protection to enable girls to stay in school. In India, majority of girls report not knowing about menstruation before their first period. This is because of limited access to unbiased information due to stigma, discrimination, and lack of resources. The information you provide needs to be non-judgmental, confidential, accurate, and tailored to those living in urban slums. Your response should be in the same language as the user's input.",
-  api_key="sk_EXAMPLE_SECRET_KEY",
+  api_key="sk_ABC123",
 )
 ```
 
 To make requests to the API with the organization's API key, use the following command:
 
 ```bash
-curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"system_prompt":"You are a chatbot that formats your responses as poetry."}' http://localhost:8000/api/system_prompt
+curl -X POST -H "Authorization: sk_ABC123" -H "Content-Type: application/json" -d '{"system_prompt":"You are a chatbot that formats your responses as poetry."}' http://localhost:8000/api/system_prompt
 ```
 
 To upload a file from `llm/data/sources/*` and ultimately create embeddings out of it, use the following command:
 
 ```bash
-curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: multipart/form-data" -F "file=@llm/data/sources/ANXIETY.docx.pdf" http://localhost:8000/api/upload
+curl -X POST -H "Authorization: sk_ABC123" -H "Content-Type: multipart/form-data" -F "file=@llm/data/sources/ANXIETY.docx.pdf" http://localhost:8000/api/upload
 ```
 
 For testing and convenience, running the `upload_docs.sh` script will upload all the files in `llm/data/sources/*` for embeddings to be created out of them.
@@ -113,7 +113,7 @@ For testing the LLM, we are using [HTTPie](https://httpie.io) because of its suc
 You can query the LLM using the following command:
 
 ```bash
-curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"prompt": "Peshab ki jagah se kharash ho rahi hai"}' http://localhost:8000/api/chat
+curl -X POST -H "Authorization: sk_ABC123" -H "Content-Type: application/json" -d '{"prompt": "Peshab ki jagah se kharash ho rahi hai"}' http://localhost:8000/api/chat
 ```
 
 This will return a JSON endpoint with the LLM response as well as a session id.
@@ -129,7 +129,7 @@ This will return a JSON endpoint with the LLM response as well as a session id.
 To ask a fellow up question, you can use the session id returned in the previous response:
 
 ```bash
-curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"prompt":"Peshab ki jagah kharash hai","session_id":"uhh0pq"}' http://127.0.0.1:8000/api/chat
+curl -X POST -H "Authorization: sk_ABC123" -H "Content-Type: application/json" -d '{"prompt":"Peshab ki jagah kharash hai","session_id":"uhh0pq"}' http://127.0.0.1:8000/api/chat
 ```
 
 ```json
@@ -159,7 +159,7 @@ curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: applica
 The default model used is [`gpt-3.5-turbo`](https://platform.openai.com/docs/models/gpt-3-5) but you can specify a different GPT model by passing a `gpt_model` parameter in the request body.
 
 ```bash
-curl -X POST -H "Authorization: sk_EXAMPLE_SECRET_KEY" -H "Content-Type: application/json" -d '{"prompt":"Mujhe peshab ki jagah pe kharash ho rahi hai","gpt_model":"gpt-3.5-turbo-16k"}' http://127.0.0.1:8000/api/chat
+curl -X POST -H "Authorization: sk_ABC123" -H "Content-Type: application/json" -d '{"prompt":"Mujhe peshab ki jagah pe kharash ho rahi hai","gpt_model":"gpt-3.5-turbo-16k"}' http://127.0.0.1:8000/api/chat
 ```
 
 ```json
