@@ -3,23 +3,20 @@ import django
 import secrets
 import string
 import json
+from logging import basicConfig, INFO, getLogger
 
+from pypdf import PdfReader
+from pgvector.django import L2Distance
+from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
-from llm.chains.chat import context_prompt_messages
-from pgvector.django import L2Distance
-from .models import Organization
-
-from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
-from pypdf import PdfReader
-from llm.models import Embedding, Message
-
 import openai
-from logging import basicConfig, INFO, getLogger
+
+from llm.utils import context_prompt_messages, evaluate_criteria_score
+from llm.models import Organization, Embedding, Message
 
 
 basicConfig(level=INFO)
@@ -100,19 +97,23 @@ def create_chat(request):
             response["choices"][0]["message"]["function_call"]["arguments"]
         )
         logger.info("Fetched language results via function calls")
-        logger.info("language detected")
+        logger.info(f"Language detected: {language_results['language']}")
 
         # 2. Pull relevant chunks from vector database
         prompt_embeddings = openai.Embedding.create(
             model="text-embedding-ada-002", input=prompt
         )["data"][0]["embedding"]
 
-        results = Embedding.objects.alias(
+        embedding_results = Embedding.objects.alias(
             distance=L2Distance("text_vectors", prompt_embeddings)
         ).filter(distance__gt=0.7)
 
-        relevant_english_context = "".join(result.original_text for result in results)
-        logger.info("retrieved the relevant document context from db")
+        relevant_english_context = "".join(
+            result.original_text for result in embedding_results
+        )
+        logger.info(
+            f"retrieved {len(embedding_results)} relevant document context from db"
+        )
 
         # 3. Fetch the chat history from our message store to send to openai and back in the response
         historical_chats = Message.objects.filter(session_id=session_id).all()
@@ -127,27 +128,56 @@ def create_chat(request):
                 language_results["english_translation"],
                 historical_chats,
             ),
+            # max_tokens=150,
         )
         logger.info("received response from the ai bot for the current prompt")
 
         prompt_response = response.choices[0].message
 
-        # 5. Store the current question and ans to the message store
-        Message.objects.create(session_id=session_id, role="user", message=prompt)
+        # 5. Evaluate if the request asks for it
+        evaluation_scores = {}
+        if request.data.get("evaluate"):
+            logger.info("Evaluting the response")
+            evaluator_prompts = organization.evaluator_prompts  # { 'coherence': ... }
+            for criteria, evaluator_prompt in evaluator_prompts.items():
+                score = evaluate_criteria_score(
+                    evaluator_prompt, prompt, prompt_response, gpt_model
+                )
+                evaluation_scores[criteria] = score
+                logger.info(f"Evaluated criteria: {criteria} with score: {score}")
+
+            logger.info("Completed evaluating the llm response", evaluator_prompts)
+
+        else:
+            logger.info("Evaluator prompt for the org has not been set")
+
+        # 6. Store the current question and ans to the message store
+        Message.objects.create(
+            session_id=session_id,
+            role="user",
+            message=prompt,
+            evaluation_score=evaluation_scores,
+        )
         Message.objects.create(
             session_id=session_id,
             role=prompt_response.role,
             message=prompt_response.content,
+            evaluation_score=evaluation_scores,
         )
+        logger.info("Stored messages in django db")
 
         return Response(
             {
+                "question": prompt,
                 "answer": prompt_response.content,
+                "language_results": language_results,
+                "embedding_results_count": len(embedding_results),
                 "chat_history": [
                     {"role": chat.role, "message": chat.message}
                     for chat in historical_chats
                 ],
                 "session_id": session_id,
+                "evaluation_scores": evaluation_scores,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -248,3 +278,30 @@ def current_organization(request):
 def generate_short_id(length=6):
     alphanumeric = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphanumeric) for _ in range(length))
+
+
+@api_view(["POST"])
+def set_evaluator_prompt(request):
+    try:
+        evaluator_prompts = request.data.get("evaluator_prompts")
+        org = current_organization(request)
+        if not org:
+            return Response(
+                f"Invalid API key",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        Organization.objects.filter(id=org.id).update(
+            evaluator_prompts=evaluator_prompts
+        )
+
+        return Response(
+            f"Updated Evaluator Prompt",
+            status=status.HTTP_201_CREATED,
+        )
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

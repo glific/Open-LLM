@@ -16,6 +16,7 @@ class Message(models.Model):
         choices=(("system", "system"), ("user", "user"), ("assistant", "assistant")),
     )
     message = models.TextField()
+    evaluation_score = models.JSONField(null=True)
 
     class Meta:
         db_table = "messages"
@@ -24,8 +25,11 @@ class Message(models.Model):
 class Organization(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    api_key = models.CharField(max_length=255)
+    api_key = models.CharField(max_length=255, unique=True)
     system_prompt = models.TextField()
+    evaluator_prompts = models.JSONField(
+        null=True
+    )  # { "confidence": "Your task is to...", "friendliness": "Your task is to..." }
 
     class Meta:
         db_table = "organization"
