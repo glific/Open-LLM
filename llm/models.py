@@ -30,6 +30,7 @@ class Organization(models.Model):
     evaluator_prompts = models.JSONField(
         null=True
     )  # { "confidence": "Your task is to...", "friendliness": "Your task is to..." }
+    examples_text = models.TextField(null=True)
 
     class Meta:
         db_table = "organization"
