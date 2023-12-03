@@ -308,6 +308,14 @@ def set_evaluator_prompt(request):
     
 @api_view(["POST"])
 def set_examples_text(request):
+    """
+    Example request body:
+
+    '
+    Question: Peshab ki jagah se kharash ho rahi hai
+    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+    '
+    """
     try:
         examples_text = request.data.get("examples_text")
         org = current_organization(request)
