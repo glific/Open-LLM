@@ -10,7 +10,11 @@ def context_prompt_messages(
     question: str,
     historical_chats: list[Message],
 ) -> list[dict]:
-    org_system_prompt = Organization.objects.get(id=organization_id).system_prompt
+    org = Organization.objects.filter(id=organization_id).first()
+    
+    org_system_prompt = org.system_prompt
+    examples_text = org.examples_text
+    
     system_message_prompt = {"role": "system", "content": org_system_prompt}
     human_message_prompt = {
         "role": "user",
@@ -22,8 +26,7 @@ def context_prompt_messages(
 
         Examples:
 
-        Question: Peshab ki jagah se kharash ho rahi hai
-        Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+        {examples_text}
 
         Question: {question}
         Chatbot Answer in {language}: """,
