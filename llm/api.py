@@ -305,3 +305,38 @@ def set_evaluator_prompt(request):
             f"Something went wrong",
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+    
+@api_view(["POST"])
+def set_examples_text(request):
+    """
+    Example request body:
+
+    '
+    Question: Peshab ki jagah se kharash ho rahi hai
+    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+    '
+    """
+    try:
+        examples_text = request.data.get("examples_text")
+        org = current_organization(request)
+        if not org:
+            return Response(
+                f"Invalid API key",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        Organization.objects.filter(id=org.id).update(
+            examples_text=examples_text
+        )
+
+        return Response(
+            f"Updated Examples Text",
+            status=status.HTTP_201_CREATED,
+        )
+    
+    except Exception as error:
+        print(f"Error: {error}")
+        return Response(
+            f"Something went wrong",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
