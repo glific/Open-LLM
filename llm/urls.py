@@ -14,10 +14,17 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path
 
-from llm.api import create_chat, set_system_prompt, FileUploadView, set_evaluator_prompt
+from llm.api import (
+    create_chat,
+    set_system_prompt,
+    FileUploadView,
+    set_evaluator_prompt,
+    set_examples_text,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -25,4 +32,5 @@ urlpatterns = [
     path("api/upload", FileUploadView.as_view(), name="file_upload"),
     path("api/system_prompt", set_system_prompt, name="set_system_prompt"),
     path("api/evaluator_prompt", set_evaluator_prompt, name="set_evaluator_prompt"),
+    path("api/examples_text", set_examples_text, name="set_examples_text"),
 ]
