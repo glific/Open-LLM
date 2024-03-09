@@ -43,6 +43,7 @@ class Embedding(models.Model):
     original_text = models.TextField()
     text_vectors = VectorField(dimensions=1536, null=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    num_tokens = models.IntegerField(default=0)
 
     class Meta:
         db_table = "embedding"

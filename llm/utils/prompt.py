@@ -1,6 +1,11 @@
-from llm.models import Message, Organization
+from llm.models import Message, Organization, Embedding
 import openai
 from typing import Union
+import tiktoken
+from logging import basicConfig, INFO, getLogger
+
+basicConfig(level=INFO)
+logger = getLogger()
 
 
 def context_prompt_messages(
@@ -31,6 +36,7 @@ def context_prompt_messages(
         Question: {question}
         Chatbot Answer in {language}: """,
     }
+
     chat_prompt_messages = (
         [system_message_prompt]
         + [{"role": chat.role, "content": chat.message} for chat in historical_chats]
@@ -55,7 +61,17 @@ def evaluate_criteria_score(
         )
         response_text = response.choices[0].message.content
 
-        print(f"response_text: {response_text}")
+        logger.info(f"response_text: {response_text}")
         evaluation_score = int(response_text)
 
     return evaluation_score
+
+
+def count_tokens_for_text(
+    prompt_text: str, model: str = "text-embedding-ada-002"
+) -> int:
+    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+
+    tokens_arr = encoding.encode(prompt_text)
+
+    return len(tokens_arr)

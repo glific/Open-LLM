@@ -6,19 +6,27 @@ from logging import basicConfig, INFO, getLogger
 from pypdf import PdfReader
 from pgvector.django import L2Distance
 from django.http import JsonResponse
+from django.forms.models import model_to_dict
+from django.db.models import Sum
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 import openai
 
-from llm.utils.prompt import context_prompt_messages, evaluate_criteria_score
+from llm.utils.prompt import (
+    context_prompt_messages,
+    evaluate_criteria_score,
+    count_tokens_for_text,
+)
 from llm.utils.general import generate_session_id
 from llm.models import Organization, Embedding, Message
 
 
 basicConfig(level=INFO)
 logger = getLogger()
+
+TOKEN_LIMIT = 7000
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "llm.settings")
 
@@ -106,15 +114,33 @@ def create_chat(request):
             model="text-embedding-ada-002", input=prompt
         )["data"][0]["embedding"]
 
-        embedding_results = Embedding.objects.alias(
-            distance=L2Distance("text_vectors", prompt_embeddings)
-        ).filter(distance__gt=0.9)
-
-        relevant_english_context = "".join(
-            result.original_text for result in embedding_results
+        embedding_results = (
+            Embedding.objects.alias(
+                distance=L2Distance("text_vectors", prompt_embeddings),
+            )
+            .filter(distance__gt=0.7)
+            .order_by("-distance")
         )
         logger.info(
             f"retrieved {len(embedding_results)} relevant document context from db"
+        )
+
+        # Filter embedding to make sure token limit is under 7000
+        final_embeddings: list[Embedding] = []
+        token_count = 0
+        for embedding in embedding_results:
+            token_count += embedding.num_tokens
+            if token_count < TOKEN_LIMIT:
+                final_embeddings.append(embedding)
+            else:
+                break
+
+        logger.info(
+            f"Using {len(final_embeddings)}/{len(embedding_results)} relevant docs to make sure token limit is under {TOKEN_LIMIT}. Token count: {token_count}"
+        )
+
+        relevant_english_context = "".join(
+            result.original_text for result in final_embeddings
         )
 
         # 3. Fetch the chat history from our message store to send to openai and back in the response
@@ -130,7 +156,6 @@ def create_chat(request):
                 language_results["english_translation"],
                 historical_chats,
             ),
-            # max_tokens=150,
         )
         logger.info("received response from the ai bot for the current prompt")
 
@@ -208,22 +233,26 @@ class FileUploadView(APIView):
             for page in pdf_reader.pages:
                 page_text = page.extract_text().replace("\n", " ")
 
-                response = openai.Embedding.create(
-                    model="text-embedding-ada-002", input=page_text
-                )
+                if len(page_text) > 0:
+                    response = openai.Embedding.create(
+                        model="text-embedding-ada-002", input=page_text
+                    )
 
-                embeddings = response["data"][0]["embedding"]
-                if len(embeddings) != 1536:
-                    raise ValueError(f"Invalid embedding length: #{len(embeddings)}")
+                    embeddings = response["data"][0]["embedding"]
+                    if len(embeddings) != 1536:
+                        raise ValueError(
+                            f"Invalid embedding length: #{len(embeddings)}"
+                        )
 
-                Embedding.objects.create(
-                    source_name=file.name,
-                    original_text=page_text,
-                    text_vectors=embeddings,
-                    organization=org,
-                )
+                    Embedding.objects.create(
+                        source_name=file.name,
+                        original_text=page_text,
+                        text_vectors=embeddings,
+                        organization=org,
+                        num_tokens=count_tokens_for_text(page_text),
+                    )
 
-            return JsonResponse({"msg": "file upload successful"})
+            return JsonResponse({"msg": f"Uploaded file {file.name} successfully"})
         except ValueError as error:
             logger.error(f"Error: {error}")
             return JsonResponse(
