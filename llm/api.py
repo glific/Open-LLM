@@ -219,7 +219,7 @@ class FileUploadView(APIView):
         except ValueError as error:
             logger.error(f"Error: {error}")
             return JsonResponse(
-                {"error": f"Invalid file: {error}"},
+                {"error": f"Invalid file"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as error:
