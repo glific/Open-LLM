@@ -33,6 +33,14 @@ def create_chat(request):
         organization: Organization = request.org
         logger.info(f"processing chat prompt request for org {organization.name}")
 
+        if not organization.openai_key:
+            return JsonResponse(
+                {"error": "Please add your openai key"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        openai.api_key = organization.openai_key
+
         prompt = request.data.get("prompt").strip()
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_session_id()).strip()
@@ -100,7 +108,7 @@ def create_chat(request):
 
         embedding_results = Embedding.objects.alias(
             distance=L2Distance("text_vectors", prompt_embeddings)
-        ).filter(distance__gt=0.7)
+        ).filter(distance__gt=0.9)
 
         relevant_english_context = "".join(
             result.original_text for result in embedding_results
@@ -178,7 +186,7 @@ def create_chat(request):
     except Exception as error:
         logger.error(f"Error: {error}")
         return JsonResponse(
-            {"error": f"Something went wrong"},
+            {"error": f"Something went wrong {error}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
