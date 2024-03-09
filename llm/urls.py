@@ -24,6 +24,7 @@ from llm.api import (
     FileUploadView,
     set_evaluator_prompt,
     set_examples_text,
+    set_openai_key,
 )
 
 urlpatterns = [
@@ -33,4 +34,5 @@ urlpatterns = [
     path("api/system_prompt", set_system_prompt, name="set_system_prompt"),
     path("api/evaluator_prompt", set_evaluator_prompt, name="set_evaluator_prompt"),
     path("api/examples_text", set_examples_text, name="set_examples_text"),
+    path("api/openai_key", set_openai_key, name="set_openai_key"),
 ]

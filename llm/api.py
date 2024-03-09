@@ -31,9 +31,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 def create_chat(request):
     try:
         organization: Organization = request.org
-        logger.info(
-            f"processing set evaluator prompt request for org {organization.name}"
-        )
+        logger.info(f"processing chat prompt request for org {organization.name}")
 
         prompt = request.data.get("prompt").strip()
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
@@ -290,7 +288,7 @@ def set_examples_text(request):
     """
     try:
         org: Organization = request.org
-        logger.info(f"processing set system prompt request for org {org.name}")
+        logger.info(f"processing set examples text request for org {org.name}")
 
         examples_text = request.data.get("examples_text")
 
@@ -299,6 +297,37 @@ def set_examples_text(request):
         return JsonResponse(
             {"msg": f"Updated Examples Text"},
             status=status.HTTP_201_CREATED,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+def set_openai_key(request):
+    """
+    Example request body:
+
+    '
+    Question: Peshab ki jagah se kharash ho rahi hai
+    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+    '
+    """
+    try:
+        org: Organization = request.org
+        logger.info(f"processing set openai key request for org {org.name}")
+
+        openai_key = request.data.get("key")
+
+        Organization.objects.filter(id=org.id).update(openai_key=openai_key)
+
+        return JsonResponse(
+            {"msg": f"Updated openai key"},
+            status=status.HTTP_200_OK,
         )
 
     except Exception as error:

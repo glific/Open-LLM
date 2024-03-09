@@ -31,6 +31,7 @@ class Organization(models.Model):
         null=True
     )  # { "confidence": "Your task is to...", "friendliness": "Your task is to..." }
     examples_text = models.TextField(null=True)
+    openai_key = models.CharField(max_length=255, unique=True, null=True)
 
     class Meta:
         db_table = "organization"
