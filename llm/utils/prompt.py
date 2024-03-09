@@ -11,10 +11,10 @@ def context_prompt_messages(
     historical_chats: list[Message],
 ) -> list[dict]:
     org = Organization.objects.filter(id=organization_id).first()
-    
+
     org_system_prompt = org.system_prompt
     examples_text = org.examples_text
-    
+
     system_message_prompt = {"role": "system", "content": org_system_prompt}
     human_message_prompt = {
         "role": "user",

@@ -1,7 +1,5 @@
 import os
 import django
-import secrets
-import string
 import json
 from logging import basicConfig, INFO, getLogger
 
@@ -10,12 +8,12 @@ from pgvector.django import L2Distance
 from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
 import openai
 
-from llm.utils import context_prompt_messages, evaluate_criteria_score
+from llm.utils.prompt import context_prompt_messages, evaluate_criteria_score
+from llm.utils.general import generate_session_id
 from llm.models import Organization, Embedding, Message
 
 
@@ -32,16 +30,14 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 @api_view(["POST"])
 def create_chat(request):
     try:
-        organization = current_organization(request)
-        if not organization:
-            return Response(
-                f"Invalid API key",
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        organization: Organization = request.org
+        logger.info(
+            f"processing set evaluator prompt request for org {organization.name}"
+        )
 
         prompt = request.data.get("prompt").strip()
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
-        session_id = (request.data.get("session_id") or generate_short_id()).strip()
+        session_id = (request.data.get("session_id") or generate_session_id()).strip()
 
         # 1. Function calling to do language detection of the user's question (1st call to OpenAI)
         response = openai.ChatCompletion.create(
@@ -166,7 +162,7 @@ def create_chat(request):
         )
         logger.info("Stored messages in django db")
 
-        return Response(
+        return JsonResponse(
             {
                 "question": prompt,
                 "answer": prompt_response.content,
@@ -182,9 +178,9 @@ def create_chat(request):
             status=status.HTTP_201_CREATED,
         )
     except Exception as error:
-        print(f"Error: {error}")
-        return Response(
-            f"Something went wrong",
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -194,12 +190,8 @@ class FileUploadView(APIView):
 
     def post(self, request, format=None):
         try:
-            org = current_organization(request)
-            if not org:
-                return Response(
-                    f"Invalid API key",
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            org: Organization = request.org
+            logger.info(f"processing file upload for org {org.name}")
 
             if "file" not in request.data:
                 raise ValueError("Empty content")
@@ -225,16 +217,17 @@ class FileUploadView(APIView):
                     organization=org,
                 )
 
-            return JsonResponse({"status": "file upload successful"})
+            return JsonResponse({"msg": "file upload successful"})
         except ValueError as error:
-            return Response(
-                f"Invalid file: {error}",
+            logger.error(f"Error: {error}")
+            return JsonResponse(
+                {"error": f"Invalid file: {error}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as error:
-            print(f"Error: {error}")
-            return Response(
-                f"Something went wrong",
+            logger.error(f"Error: {error}")
+            return JsonResponse(
+                {"error": f"Something went wrong"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -242,70 +235,49 @@ class FileUploadView(APIView):
 @api_view(["POST"])
 def set_system_prompt(request):
     try:
+        org: Organization = request.org
+        logger.info(f"processing set system prompt for org {org.name}")
+
         system_prompt = request.data.get("system_prompt").strip()
-        org = current_organization(request)
-        if not org:
-            return Response(
-                f"Invalid API key",
-                status=status.HTTP_404_NOT_FOUND,
-            )
 
         Organization.objects.filter(id=org.id).update(system_prompt=system_prompt)
 
-        return Response(
-            f"Updated System Prompt",
+        return JsonResponse(
+            {"msg": f"Updated System Prompt"},
             status=status.HTTP_201_CREATED,
         )
     except Exception as error:
-        print(f"Error: {error}")
-        return Response(
-            f"Something went wrong",
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-
-def current_organization(request):
-    api_key = request.headers.get("Authorization")
-    if not api_key:
-        return None
-
-    try:
-        return Organization.objects.get(api_key=api_key)
-    except Organization.DoesNotExist:
-        return None
-
-
-def generate_short_id(length=6):
-    alphanumeric = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphanumeric) for _ in range(length))
 
 
 @api_view(["POST"])
 def set_evaluator_prompt(request):
     try:
+        org: Organization = request.org
+        logger.info(f"processing set evaluator prompt request for org {org.name}")
+
         evaluator_prompts = request.data.get("evaluator_prompts")
-        org = current_organization(request)
-        if not org:
-            return Response(
-                f"Invalid API key",
-                status=status.HTTP_404_NOT_FOUND,
-            )
 
         Organization.objects.filter(id=org.id).update(
             evaluator_prompts=evaluator_prompts
         )
 
-        return Response(
-            f"Updated Evaluator Prompt",
+        return JsonResponse(
+            {"msg": f"Updated Evaluator Prompt"},
             status=status.HTTP_201_CREATED,
         )
     except Exception as error:
-        print(f"Error: {error}")
-        return Response(
-            f"Something went wrong",
+        logger.info(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    
+
+
 @api_view(["POST"])
 def set_examples_text(request):
     """
@@ -317,26 +289,21 @@ def set_examples_text(request):
     '
     """
     try:
+        org: Organization = request.org
+        logger.info(f"processing set system prompt request for org {org.name}")
+
         examples_text = request.data.get("examples_text")
-        org = current_organization(request)
-        if not org:
-            return Response(
-                f"Invalid API key",
-                status=status.HTTP_404_NOT_FOUND,
-            )
 
-        Organization.objects.filter(id=org.id).update(
-            examples_text=examples_text
-        )
+        Organization.objects.filter(id=org.id).update(examples_text=examples_text)
 
-        return Response(
-            f"Updated Examples Text",
+        return JsonResponse(
+            {"msg": f"Updated Examples Text"},
             status=status.HTTP_201_CREATED,
         )
-    
+
     except Exception as error:
-        print(f"Error: {error}")
-        return Response(
-            f"Something went wrong",
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
