@@ -34,7 +34,11 @@ SECRET_KEY = "django-insecure-4t+do7%b&0ty)#0f8qqagz^0!^!c$oeedsgf434j0l=x(9^yak
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "openllm.projecttech4dev.org",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
