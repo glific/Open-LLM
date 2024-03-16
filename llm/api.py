@@ -227,6 +227,8 @@ class FileUploadView(APIView):
             if "file" not in request.data:
                 raise ValueError("Empty content")
 
+            openai.api_key = org.openai_key
+
             file = request.data["file"]
 
             pdf_reader = PdfReader(file)
