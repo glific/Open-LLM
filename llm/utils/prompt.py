@@ -9,6 +9,7 @@ logger = getLogger()
 
 
 def context_prompt_messages(
+    system_prompt: str,
     organization_id: int,
     language: str,
     english_context: str,
@@ -17,10 +18,9 @@ def context_prompt_messages(
 ) -> list[dict]:
     org = Organization.objects.filter(id=organization_id).first()
 
-    org_system_prompt = org.system_prompt
     examples_text = org.examples_text
 
-    system_message_prompt = {"role": "system", "content": org_system_prompt}
+    system_message_prompt = {"role": "system", "content": system_prompt}
     human_message_prompt = {
         "role": "user",
         "content": f"""Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.

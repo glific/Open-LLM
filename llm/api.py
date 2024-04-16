@@ -49,7 +49,13 @@ def create_chat(request):
 
         openai.api_key = organization.openai_key
 
-        prompt = request.data.get("prompt").strip()
+        question = request.data.get("question").strip()
+        system_prompt = (
+            request.data.get("system_prompt", None) or organization.system_prompt
+        )
+        system_prompt = system_prompt.strip() if system_prompt else None
+        logger.info(f"Using the system prompt : {system_prompt}")
+
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_session_id()).strip()
 
@@ -59,7 +65,7 @@ def create_chat(request):
             messages=[
                 {
                     "role": "user",
-                    "content": f"Detect the languages in this text: {prompt}",
+                    "content": f"Detect the languages in this text: {question}",
                 }
             ],
             functions=[
@@ -111,7 +117,7 @@ def create_chat(request):
 
         # 2. Pull relevant chunks from vector database
         prompt_embeddings = openai.Embedding.create(
-            model="text-embedding-ada-002", input=prompt
+            model="text-embedding-ada-002", input=question
         )["data"][0]["embedding"]
 
         embedding_results = (
@@ -146,10 +152,11 @@ def create_chat(request):
         # 3. Fetch the chat history from our message store to send to openai and back in the response
         historical_chats = Message.objects.filter(session_id=session_id).all()
 
-        # 4. Retrievial question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
+        # 4. Retrieval question and answer (2nd call to OpenAI, use language from 1. to help LLM respond in same language as user question)
         response = openai.ChatCompletion.create(
             model=gpt_model,
             messages=context_prompt_messages(
+                system_prompt,
                 organization.id,
                 language_results["language"],
                 relevant_english_context,
@@ -168,7 +175,7 @@ def create_chat(request):
             evaluator_prompts = organization.evaluator_prompts  # { 'coherence': ... }
             for criteria, evaluator_prompt in evaluator_prompts.items():
                 score = evaluate_criteria_score(
-                    evaluator_prompt, prompt, prompt_response, gpt_model
+                    evaluator_prompt, question, prompt_response, gpt_model
                 )
                 evaluation_scores[criteria] = score
                 logger.info(f"Evaluated criteria: {criteria} with score: {score}")
@@ -182,7 +189,7 @@ def create_chat(request):
         Message.objects.create(
             session_id=session_id,
             role="user",
-            message=prompt,
+            message=question,
             evaluation_score=evaluation_scores,
         )
         Message.objects.create(
@@ -195,7 +202,7 @@ def create_chat(request):
 
         return JsonResponse(
             {
-                "question": prompt,
+                "question": question,
                 "answer": prompt_response.content,
                 "language_results": language_results,
                 "embedding_results_count": len(embedding_results),
