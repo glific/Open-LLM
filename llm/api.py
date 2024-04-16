@@ -50,9 +50,12 @@ def create_chat(request):
         openai.api_key = organization.openai_key
 
         question = request.data.get("question").strip()
-        system_prompt = request.data.get(
-            "system_prompt", organization.system_prompt
-        ).strip()
+        system_prompt = (
+            request.data.get("system_prompt", None) or organization.system_prompt
+        )
+        system_prompt = system_prompt.strip() if system_prompt else None
+        logger.info(f"Using the system prompt : {system_prompt}")
+
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_session_id()).strip()
 
