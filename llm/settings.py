@@ -38,6 +38,7 @@ ALLOWED_HOSTS = [
     "openllm.projecttech4dev.org",
     "localhost",
     "127.0.0.1",
+    "13.127.31.97",
 ]
 
 
