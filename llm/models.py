@@ -47,6 +47,7 @@ class KnowledgeCategory(models.Model):
     id = models.AutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
     name = models.CharField(max_length=255, unique=True, default="default")
+    org = models.ForeignKey(Organization, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "knowledge_category"
