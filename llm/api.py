@@ -416,7 +416,13 @@ def create_knowledge_category(request):
 
         name = request.data.get("name")
 
-        knowledge_cat = KnowledgeCategory.objects.create(name=name, org=org)
+        if KnowledgeCategory.objects.filter(name=name, org=org).exists():
+            return JsonResponse(
+                {"error": f"Knowledge Category with name {name} already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        knowledge_cat = KnowledgeCategory.objects.create(name=name.strip(), org=org)
 
         return JsonResponse(
             {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid},
