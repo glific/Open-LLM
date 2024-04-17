@@ -28,6 +28,7 @@ from llm.api import (
     create_knowledge_category,
     get_knowledge_categories,
     delete_knowledge_category,
+    get_documents,
 )
 
 urlpatterns = [
@@ -46,11 +47,16 @@ urlpatterns = [
     path(
         "api/knowledge/category/get",
         get_knowledge_categories,
-        name="create_knowledge_category",
+        name="get_knowledge_categories",
     ),
     path(
         "api/knowledge/category/<str:category_uuid>",
         delete_knowledge_category,
         name="delete_knowledge_category",
+    ),
+    path(
+        "api/files",
+        get_documents,
+        name="get_documents",
     ),
 ]

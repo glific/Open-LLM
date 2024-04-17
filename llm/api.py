@@ -519,3 +519,36 @@ def delete_knowledge_category(request, category_uuid):
             {"error": f"Something went wrong"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+def get_documents(request):
+    """
+    Fetches all documents uploaded by the org
+    """
+    try:
+        org: Organization = request.org
+
+        return JsonResponse(
+            {
+                "data": [
+                    {
+                        "name": file.name,
+                        "uuid": file.uuid,
+                        "category": {
+                            "name": file.knowledge_category.name,
+                            "uuid": file.knowledge_category.uuid,
+                        },
+                    }
+                    for file in File.objects.filter(knowledge_category__org=org).all()
+                ]
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
