@@ -29,6 +29,7 @@ from llm.api import (
     get_knowledge_categories,
     delete_knowledge_category,
     get_documents,
+    delete_document,
 )
 
 urlpatterns = [
@@ -58,5 +59,10 @@ urlpatterns = [
         "api/files",
         get_documents,
         name="get_documents",
+    ),
+    path(
+        "api/files/<str:file_uuid>",
+        delete_document,
+        name="delete_document",
     ),
 ]

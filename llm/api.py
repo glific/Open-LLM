@@ -252,6 +252,12 @@ class FileUploadView(APIView):
 
             request_file = request.data["file"]
 
+            if not "category_uuid" in request.data:
+                return JsonResponse(
+                    {"error": f"Please provide a category"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             knowledge_cat = None
             if "category_uuid" in request.data:
                 knowledge_cat = KnowledgeCategory.objects.filter(
@@ -543,6 +549,47 @@ def get_documents(request):
                     for file in File.objects.filter(knowledge_category__org=org).all()
                 ]
             },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["DELETE"])
+def delete_document(request, file_uuid):
+    """
+    Fetches all documents uploaded by the org
+    """
+    try:
+        org: Organization = request.org
+
+        try:
+            uuid.UUID(
+                file_uuid
+            )  # This will raise a ValueError if uuid_str is not a valid UUID
+        except ValueError:
+            return JsonResponse(
+                {"error": "Invalid UUID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        file = File.objects.filter(uuid=file_uuid, knowledge_category__org=org).first()
+
+        if not file:
+            return JsonResponse(
+                {"error": f"Document does not exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        file.delete()
+
+        return JsonResponse(
+            {"msg": f"File and its embeddings deleted successfully"},
             status=status.HTTP_200_OK,
         )
 
