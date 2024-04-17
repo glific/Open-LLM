@@ -399,3 +399,33 @@ def set_openai_key(request):
             {"error": f"Something went wrong"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+def create_knowledge_category(request):
+    """
+    Example request body:
+
+    '
+    Question: Peshab ki jagah se kharash ho rahi hai
+    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+    '
+    """
+    try:
+        org: Organization = request.org
+
+        name = request.data.get("name")
+
+        knowledge_cat = KnowledgeCategory.objects.create(name=name, org=org)
+
+        return JsonResponse(
+            {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

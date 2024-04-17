@@ -25,6 +25,7 @@ from llm.api import (
     set_evaluator_prompt,
     set_examples_text,
     set_openai_key,
+    create_knowledge_category,
 )
 
 urlpatterns = [
@@ -35,4 +36,9 @@ urlpatterns = [
     path("api/evaluator_prompt", set_evaluator_prompt, name="set_evaluator_prompt"),
     path("api/examples_text", set_examples_text, name="set_examples_text"),
     path("api/openai_key", set_openai_key, name="set_openai_key"),
+    path(
+        "api/knowledge/category",
+        create_knowledge_category,
+        name="create_knowledge_category",
+    ),
 ]
