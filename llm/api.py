@@ -50,6 +50,12 @@ def create_chat(request):
 
         openai.api_key = organization.openai_key
 
+        knowledge_cat = None
+        if "category_uuid" in request.data:
+            knowledge_cat = KnowledgeCategory.objects.filter(
+                uuid=request.data["category_uuid"]
+            ).first()
+
         question = request.data.get("question").strip()
         system_prompt = (
             request.data.get("system_prompt", None) or organization.system_prompt
@@ -121,11 +127,18 @@ def create_chat(request):
             model="text-embedding-ada-002", input=question
         )["data"][0]["embedding"]
 
+        embedding_results_query = Embedding.objects
+
+        if knowledge_cat:
+            embedding_results_query = embedding_results_query.filter(
+                file__knowledge_category=knowledge_cat
+            )
+
         embedding_results = (
-            Embedding.objects.alias(
+            embedding_results_query.alias(
                 distance=L2Distance("text_vectors", prompt_embeddings),
             )
-            .filter(distance__gt=0.7)
+            # .filter(distance__gt=0.7)
             .order_by("-distance")
         )
         logger.info(
@@ -239,7 +252,6 @@ class FileUploadView(APIView):
 
             request_file = request.data["file"]
 
-            # Create the file object
             knowledge_cat = None
             if "category_uuid" in request.data:
                 knowledge_cat = KnowledgeCategory.objects.filter(
@@ -250,6 +262,7 @@ class FileUploadView(APIView):
 
             logger.info("Uploading file %s", request_file.name)
 
+            # Create the file object
             file = File.objects.create(
                 knowledge_category=knowledge_cat,
                 name=request_file.name,
@@ -406,12 +419,7 @@ def set_openai_key(request):
 @api_view(["POST"])
 def create_knowledge_category(request):
     """
-    Example request body:
-
-    '
-    Question: Peshab ki jagah se kharash ho rahi hai
-    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
-    '
+    Create a new category for an org
     """
     try:
         org: Organization = request.org
@@ -428,6 +436,32 @@ def create_knowledge_category(request):
 
         return JsonResponse(
             {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def get_knowledge_categories(request):
+    """
+    Fetches all categories for an org
+    """
+    try:
+        org: Organization = request.org
+
+        return JsonResponse(
+            {
+                "data": [
+                    {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid}
+                    for knowledge_cat in KnowledgeCategory.objects.filter(org=org).all()
+                ]
+            },
             status=status.HTTP_200_OK,
         )
 

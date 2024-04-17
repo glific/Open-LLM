@@ -26,6 +26,7 @@ from llm.api import (
     set_examples_text,
     set_openai_key,
     create_knowledge_category,
+    get_knowledge_categories,
     delete_knowledge_category,
 )
 
@@ -40,6 +41,11 @@ urlpatterns = [
     path(
         "api/knowledge/category",
         create_knowledge_category,
+        name="create_knowledge_category",
+    ),
+    path(
+        "api/knowledge/category/get",
+        get_knowledge_categories,
         name="create_knowledge_category",
     ),
     path(
