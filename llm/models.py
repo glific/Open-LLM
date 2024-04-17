@@ -61,7 +61,7 @@ class File(models.Model):
     id = models.AutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
     knowledge_category = models.ForeignKey(
-        KnowledgeCategory, on_delete=models.SET_NULL, null=True
+        KnowledgeCategory, on_delete=models.CASCADE, null=True
     )
     name = models.CharField(max_length=255)
 

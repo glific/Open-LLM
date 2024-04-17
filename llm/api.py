@@ -1,3 +1,4 @@
+import uuid
 import os
 import django
 import json
@@ -350,6 +351,7 @@ def set_examples_text(request):
     '
     """
     try:
+
         org: Organization = request.org
         logger.info(f"processing set examples text request for org {org.name}")
 
@@ -426,6 +428,54 @@ def create_knowledge_category(request):
 
         return JsonResponse(
             {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["DELETE"])
+def delete_knowledge_category(request, category_uuid):
+    """
+    Example request body:
+
+    '
+    Question: Peshab ki jagah se kharash ho rahi hai
+    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+    '
+    """
+    try:
+        org: Organization = request.org
+
+        try:
+            uuid.UUID(
+                category_uuid
+            )  # This will raise a ValueError if uuid_str is not a valid UUID
+        except ValueError:
+            return JsonResponse(
+                {"error": "Invalid UUID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        knowledge_cat = KnowledgeCategory.objects.filter(
+            uuid=category_uuid, org=org
+        ).first()
+
+        if not knowledge_cat:
+            return JsonResponse(
+                {"error": f"Knowledge Category does not exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        knowledge_cat.delete()
+
+        return JsonResponse(
+            {"msg": f"Category deleted successfully"},
             status=status.HTTP_200_OK,
         )
 
