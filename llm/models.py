@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 
 from pgvector.django import VectorField
@@ -37,6 +38,36 @@ class Organization(models.Model):
         db_table = "organization"
 
 
+class KnowledgeCategory(models.Model):
+    """
+    Model to store the knowledge category
+    Documents and their embeddings will now be associated with a knowledge category
+    """
+
+    id = models.AutoField(primary_key=True)
+    uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+    name = models.CharField(max_length=255, unique=True, default="default")
+
+    class Meta:
+        db_table = "knowledge_category"
+
+
+class File(models.Model):
+    """
+    Store the details of all the file/document uploaded
+    """
+
+    id = models.AutoField(primary_key=True)
+    uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+    knowledge_category = models.ForeignKey(
+        KnowledgeCategory, on_delete=models.SET_NULL, null=True
+    )
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        db_table = "files"
+
+
 class Embedding(models.Model):
     id = models.AutoField(primary_key=True)
     source_name = models.TextField()
@@ -44,6 +75,7 @@ class Embedding(models.Model):
     text_vectors = VectorField(dimensions=1536, null=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     num_tokens = models.IntegerField(default=0)
+    file = models.ForeignKey(File, on_delete=models.CASCADE, null=True)
 
     class Meta:
         db_table = "embedding"

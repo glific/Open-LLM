@@ -1,6 +1,7 @@
 import os
 import django
 import json
+import openai
 from logging import basicConfig, INFO, getLogger
 
 from pypdf import PdfReader
@@ -12,7 +13,6 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
-import openai
 
 from llm.utils.prompt import (
     context_prompt_messages,
@@ -20,7 +20,7 @@ from llm.utils.prompt import (
     count_tokens_for_text,
 )
 from llm.utils.general import generate_session_id
-from llm.models import Organization, Embedding, Message
+from llm.models import Organization, Embedding, Message, File, KnowledgeCategory
 
 
 basicConfig(level=INFO)
@@ -236,9 +236,25 @@ class FileUploadView(APIView):
 
             openai.api_key = org.openai_key
 
-            file = request.data["file"]
+            request_file = request.data["file"]
 
-            pdf_reader = PdfReader(file)
+            # Create the file object
+            knowledge_cat = None
+            if "category_uuid" in request.data:
+                knowledge_cat = KnowledgeCategory.objects.filter(
+                    uuid=request.data["category_uuid"]
+                ).first()
+
+            logger.info("Using Knowledge Category : %s", knowledge_cat)
+
+            logger.info("Uploading file %s", request_file.name)
+
+            file = File.objects.create(
+                knowledge_category=knowledge_cat,
+                name=request_file.name,
+            )
+
+            pdf_reader = PdfReader(request_file)
             for page in pdf_reader.pages:
                 page_text = page.extract_text().replace("\n", " ")
 
@@ -259,6 +275,7 @@ class FileUploadView(APIView):
                         text_vectors=embeddings,
                         organization=org,
                         num_tokens=count_tokens_for_text(page_text),
+                        file=file,
                     )
 
             return JsonResponse({"msg": f"Uploaded file {file.name} successfully"})
