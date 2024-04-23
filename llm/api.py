@@ -51,9 +51,9 @@ def create_chat(request):
         openai.api_key = organization.openai_key
 
         knowledge_cat = None
-        if "category_uuid" in request.data:
+        if "category_id" in request.data:
             knowledge_cat = KnowledgeCategory.objects.filter(
-                uuid=request.data["category_uuid"]
+                id=request.data["category_id"]
             ).first()
 
         question = request.data.get("question").strip()
@@ -252,17 +252,21 @@ class FileUploadView(APIView):
 
             request_file = request.data["file"]
 
-            if not "category_uuid" in request.data:
+            if "category_id" not in request.data:
                 return JsonResponse(
                     {"error": f"Please provide a category"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            knowledge_cat = None
-            if "category_uuid" in request.data:
-                knowledge_cat = KnowledgeCategory.objects.filter(
-                    uuid=request.data["category_uuid"]
-                ).first()
+            knowledge_cat = KnowledgeCategory.objects.filter(
+                id=request.data["category_id"]
+            ).first()
+
+            if not knowledge_cat:
+                return JsonResponse(
+                    {"error": f"Category does not exist, please create one first"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
             logger.info("Using Knowledge Category : %s", knowledge_cat)
 
@@ -441,7 +445,11 @@ def create_knowledge_category(request):
         knowledge_cat = KnowledgeCategory.objects.create(name=name.strip(), org=org)
 
         return JsonResponse(
-            {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid},
+            {
+                "name": knowledge_cat.name,
+                "uuid": knowledge_cat.uuid,
+                "id": knowledge_cat.id,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -464,7 +472,11 @@ def get_knowledge_categories(request):
         return JsonResponse(
             {
                 "data": [
-                    {"name": knowledge_cat.name, "uuid": knowledge_cat.uuid}
+                    {
+                        "name": knowledge_cat.name,
+                        "uuid": knowledge_cat.uuid,
+                        "id": knowledge_cat.id,
+                    }
                     for knowledge_cat in KnowledgeCategory.objects.filter(org=org).all()
                 ]
             },
@@ -544,6 +556,7 @@ def get_documents(request):
                         "category": {
                             "name": file.knowledge_category.name,
                             "uuid": file.knowledge_category.uuid,
+                            "id": file.knowledge_category.id,
                         },
                     }
                     for file in File.objects.filter(knowledge_category__org=org).all()
