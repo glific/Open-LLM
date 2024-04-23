@@ -1,6 +1,8 @@
+import uuid
 import os
 import django
 import json
+import openai
 from logging import basicConfig, INFO, getLogger
 
 from pypdf import PdfReader
@@ -12,7 +14,6 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import MultiPartParser
 from rest_framework.views import APIView
-import openai
 
 from llm.utils.prompt import (
     context_prompt_messages,
@@ -20,7 +21,7 @@ from llm.utils.prompt import (
     count_tokens_for_text,
 )
 from llm.utils.general import generate_session_id
-from llm.models import Organization, Embedding, Message
+from llm.models import Organization, Embedding, Message, File, KnowledgeCategory
 
 
 basicConfig(level=INFO)
@@ -48,6 +49,12 @@ def create_chat(request):
             )
 
         openai.api_key = organization.openai_key
+
+        knowledge_cat = None
+        if "category_id" in request.data:
+            knowledge_cat = KnowledgeCategory.objects.filter(
+                id=request.data["category_id"]
+            ).first()
 
         question = request.data.get("question").strip()
         system_prompt = (
@@ -120,11 +127,18 @@ def create_chat(request):
             model="text-embedding-ada-002", input=question
         )["data"][0]["embedding"]
 
+        embedding_results_query = Embedding.objects
+
+        if knowledge_cat:
+            embedding_results_query = embedding_results_query.filter(
+                file__knowledge_category=knowledge_cat
+            )
+
         embedding_results = (
-            Embedding.objects.alias(
+            embedding_results_query.alias(
                 distance=L2Distance("text_vectors", prompt_embeddings),
             )
-            .filter(distance__gt=0.7)
+            # .filter(distance__gt=0.7)
             .order_by("-distance")
         )
         logger.info(
@@ -236,9 +250,35 @@ class FileUploadView(APIView):
 
             openai.api_key = org.openai_key
 
-            file = request.data["file"]
+            request_file = request.data["file"]
 
-            pdf_reader = PdfReader(file)
+            if "category_id" not in request.data:
+                return JsonResponse(
+                    {"error": f"Please provide a category"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            knowledge_cat = KnowledgeCategory.objects.filter(
+                id=request.data["category_id"]
+            ).first()
+
+            if not knowledge_cat:
+                return JsonResponse(
+                    {"error": f"Category does not exist, please create one first"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            logger.info("Using Knowledge Category : %s", knowledge_cat)
+
+            logger.info("Uploading file %s", request_file.name)
+
+            # Create the file object
+            file = File.objects.create(
+                knowledge_category=knowledge_cat,
+                name=request_file.name,
+            )
+
+            pdf_reader = PdfReader(request_file)
             for page in pdf_reader.pages:
                 page_text = page.extract_text().replace("\n", " ")
 
@@ -259,6 +299,7 @@ class FileUploadView(APIView):
                         text_vectors=embeddings,
                         organization=org,
                         num_tokens=count_tokens_for_text(page_text),
+                        file=file,
                     )
 
             return JsonResponse({"msg": f"Uploaded file {file.name} successfully"})
@@ -333,6 +374,7 @@ def set_examples_text(request):
     '
     """
     try:
+
         org: Organization = request.org
         logger.info(f"processing set examples text request for org {org.name}")
 
@@ -373,6 +415,194 @@ def set_openai_key(request):
 
         return JsonResponse(
             {"msg": f"Updated openai key"},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+def create_knowledge_category(request):
+    """
+    Create a new category for an org
+    """
+    try:
+        org: Organization = request.org
+
+        name = request.data.get("name")
+
+        if KnowledgeCategory.objects.filter(name=name, org=org).exists():
+            return JsonResponse(
+                {"error": f"Knowledge Category with name {name} already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        knowledge_cat = KnowledgeCategory.objects.create(name=name.strip(), org=org)
+
+        return JsonResponse(
+            {
+                "name": knowledge_cat.name,
+                "uuid": knowledge_cat.uuid,
+                "id": knowledge_cat.id,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def get_knowledge_categories(request):
+    """
+    Fetches all categories for an org
+    """
+    try:
+        org: Organization = request.org
+
+        return JsonResponse(
+            {
+                "data": [
+                    {
+                        "name": knowledge_cat.name,
+                        "uuid": knowledge_cat.uuid,
+                        "id": knowledge_cat.id,
+                    }
+                    for knowledge_cat in KnowledgeCategory.objects.filter(org=org).all()
+                ]
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["DELETE"])
+def delete_knowledge_category(request, category_uuid):
+    """
+    Example request body:
+
+    '
+    Question: Peshab ki jagah se kharash ho rahi hai
+    Chatbot Answer in Hindi: aapakee samasya ke lie dhanyavaad. yah peshaab ke samay kharaash kee samasya ho sakatee hai. ise yoorinaree traikt inphekshan (uti) kaha jaata hai. yoorinaree traikt imphekshan utpann hone ka mukhy kaaran aantarik inphekshan ho sakata hai.
+    '
+    """
+    try:
+        org: Organization = request.org
+
+        try:
+            uuid.UUID(
+                category_uuid
+            )  # This will raise a ValueError if uuid_str is not a valid UUID
+        except ValueError:
+            return JsonResponse(
+                {"error": "Invalid UUID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        knowledge_cat = KnowledgeCategory.objects.filter(
+            uuid=category_uuid, org=org
+        ).first()
+
+        if not knowledge_cat:
+            return JsonResponse(
+                {"error": f"Knowledge Category does not exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        knowledge_cat.delete()
+
+        return JsonResponse(
+            {"msg": f"Category deleted successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def get_documents(request):
+    """
+    Fetches all documents uploaded by the org
+    """
+    try:
+        org: Organization = request.org
+
+        return JsonResponse(
+            {
+                "data": [
+                    {
+                        "name": file.name,
+                        "uuid": file.uuid,
+                        "category": {
+                            "name": file.knowledge_category.name,
+                            "uuid": file.knowledge_category.uuid,
+                            "id": file.knowledge_category.id,
+                        },
+                    }
+                    for file in File.objects.filter(knowledge_category__org=org).all()
+                ]
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as error:
+        logger.error(f"Error: {error}")
+        return JsonResponse(
+            {"error": f"Something went wrong"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["DELETE"])
+def delete_document(request, file_uuid):
+    """
+    Fetches all documents uploaded by the org
+    """
+    try:
+        org: Organization = request.org
+
+        try:
+            uuid.UUID(
+                file_uuid
+            )  # This will raise a ValueError if uuid_str is not a valid UUID
+        except ValueError:
+            return JsonResponse(
+                {"error": "Invalid UUID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        file = File.objects.filter(uuid=file_uuid, knowledge_category__org=org).first()
+
+        if not file:
+            return JsonResponse(
+                {"error": f"Document does not exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        file.delete()
+
+        return JsonResponse(
+            {"msg": f"File and its embeddings deleted successfully"},
             status=status.HTTP_200_OK,
         )
 
