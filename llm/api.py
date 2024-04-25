@@ -251,6 +251,13 @@ class FileUploadView(APIView):
             openai.api_key = org.openai_key
 
             request_file = request.data["file"]
+            file_name = (
+                request.data["filename"].strip()
+                if "filename" in request.data
+                else request_file.name
+            )
+
+            logger.info("Recognized file with name %s", file_name)
 
             if "category_id" not in request.data:
                 return JsonResponse(
@@ -270,12 +277,12 @@ class FileUploadView(APIView):
 
             logger.info("Using Knowledge Category : %s", knowledge_cat)
 
-            logger.info("Uploading file %s", request_file.name)
+            logger.info("Uploading file %s", file_name)
 
             # Create the file object
             file = File.objects.create(
                 knowledge_category=knowledge_cat,
-                name=request_file.name,
+                name=file_name,
             )
 
             pdf_reader = PdfReader(request_file)
