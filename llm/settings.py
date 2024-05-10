@@ -141,3 +141,9 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 0
+
+
+FILE_UPLOAD_TEMP_DIR = "temp_files/"
