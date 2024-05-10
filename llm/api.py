@@ -61,7 +61,6 @@ def create_chat(request):
             request.data.get("system_prompt", None) or organization.system_prompt
         )
         system_prompt = system_prompt.strip() if system_prompt else None
-        logger.info(f"Using the system prompt : {system_prompt}")
 
         gpt_model = request.data.get("gpt_model", "gpt-3.5-turbo").strip()
         session_id = (request.data.get("session_id") or generate_session_id()).strip()
@@ -69,10 +68,11 @@ def create_chat(request):
         # 1. Function calling to do language detection of the user's question (1st call to OpenAI)
         response = openai.ChatCompletion.create(
             model=gpt_model,
+            response_format={"type": "json_object"},
             messages=[
                 {
                     "role": "user",
-                    "content": f"Detect the languages in this text: {question}",
+                    "content": f"Detect the languages in this text: {question}. Produce the result in JSON",
                 }
             ],
             functions=[
@@ -184,7 +184,7 @@ def create_chat(request):
 
         # 5. Evaluate if the request asks for it
         evaluation_scores = {}
-        if request.data.get("evaluate"):
+        if request.data.get("evaluate") and request.data.get("evaluate") == "true":
             logger.info("Evaluting the response")
             evaluator_prompts = organization.evaluator_prompts  # { 'coherence': ... }
             for criteria, evaluator_prompt in evaluator_prompts.items():
@@ -290,7 +290,7 @@ class FileUploadView(APIView):
                 request_file.temporary_file_path(), request_file.content_type
             )
             for page in doc_loader.chunks():
-                page_text = page.page_content.replace("\n", " ")
+                page_text = page.page_content
 
                 if len(page_text) > 0:
                     response = openai.Embedding.create(
